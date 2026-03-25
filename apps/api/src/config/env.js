@@ -4,15 +4,61 @@ dotenv.config();
 
 const allowedNodeEnvs = new Set(["development", "test", "production"]);
 
+function stripWrappingQuotes(value) {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+}
+
 function getEnv(name, fallback = "") {
-  const value = process.env[name] || fallback;
-  return typeof value === "string" ? value.trim() : value;
+  const value = stripWrappingQuotes(process.env[name]);
+
+  if (value === "") {
+    return typeof fallback === "string" ? stripWrappingQuotes(fallback) : fallback;
+  }
+
+  return value;
+}
+
+function normalizeUrl(value) {
+  const sanitizedValue = stripWrappingQuotes(value);
+
+  if (!sanitizedValue) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(sanitizedValue);
+    const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "");
+    return `${parsedUrl.origin}${normalizedPath === "/" ? "" : normalizedPath}`;
+  } catch {
+    return sanitizedValue.replace(/\/+$/, "");
+  }
 }
 
 function normalizeOrigin(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\/+$/, "");
+  const sanitizedValue = stripWrappingQuotes(value);
+
+  if (!sanitizedValue) {
+    return "";
+  }
+
+  try {
+    return new URL(sanitizedValue).origin;
+  } catch {
+    return sanitizedValue.replace(/\/+$/, "");
+  }
 }
 
 function getNumber(name, fallback) {
@@ -40,9 +86,9 @@ function getRequiredEnv(name) {
 }
 
 function getStringList(name, fallback) {
-  return getEnv(name, fallback)
-    .split(",")
-    .map((value) => value.trim())
+  return String(getEnv(name, fallback) || "")
+    .split(/[\r\n,]+/)
+    .map((value) => stripWrappingQuotes(value.replace(/^\[/, "").replace(/\]$/, "")))
     .filter(Boolean);
 }
 
@@ -56,18 +102,21 @@ if (!allowedNodeEnvs.has(nodeEnv)) {
   throw new Error(`NODE_ENV must be one of: ${Array.from(allowedNodeEnvs).join(", ")}`);
 }
 
-const webAppUrl = normalizeOrigin(getEnv("WEB_APP_URL", "http://localhost:5173"));
-const publicSiteUrl = normalizeOrigin(getEnv("PUBLIC_SITE_URL", "http://localhost:5173"));
-const apiBaseUrl = normalizeOrigin(getEnv("API_BASE_URL", "http://localhost:4000"));
-const corsAllowedOrigins = getNormalizedOriginList(
-  "CORS_ALLOWED_ORIGINS",
-  [
-    webAppUrl,
-    publicSiteUrl,
-    "https://examnovaai.onrender.com",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-  ].join(","),
+const webAppUrl = normalizeUrl(getEnv("WEB_APP_URL", "http://localhost:5173"));
+const publicSiteUrl = normalizeUrl(getEnv("PUBLIC_SITE_URL", "http://localhost:5173"));
+const apiBaseUrl = normalizeUrl(getEnv("API_BASE_URL", "http://localhost:4000"));
+const defaultCorsAllowedOrigins = [
+  normalizeOrigin(webAppUrl),
+  normalizeOrigin(publicSiteUrl),
+  "https://examnovaai.onrender.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean);
+const corsAllowedOrigins = Array.from(
+  new Set([
+    ...defaultCorsAllowedOrigins,
+    ...getNormalizedOriginList("CORS_ALLOWED_ORIGINS", ""),
+  ]),
 );
 
 export const env = {

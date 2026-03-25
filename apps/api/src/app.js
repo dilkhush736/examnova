@@ -13,12 +13,13 @@ import { rateLimitPlaceholder } from "./middleware/rateLimit.middleware.js";
 export function createApp() {
   const app = express();
   const corsOptions = createCorsOptions();
+  const corsMiddleware = cors(corsOptions);
 
   app.disable("x-powered-by");
   app.set("trust proxy", env.trustProxy);
   app.use(attachRequestContext);
-  app.use(cors(corsOptions));
-  app.options("*", cors(corsOptions));
+  app.use(corsMiddleware);
+  app.options("*", corsMiddleware);
   app.use(
     helmet({
       crossOriginResourcePolicy: false,

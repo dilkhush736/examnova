@@ -6,6 +6,12 @@ function normalizeOrigin(value) {
     .replace(/\/+$/, "");
 }
 
+function createCorsError(origin) {
+  const error = new Error(`CORS blocked for origin: ${origin}`);
+  error.statusCode = 403;
+  return error;
+}
+
 export function createCorsOptions() {
   const allowedOrigins = new Set(env.corsAllowedOrigins.map(normalizeOrigin));
 
@@ -17,10 +23,10 @@ export function createCorsOptions() {
 
       const normalizedOrigin = normalizeOrigin(origin);
       if (allowedOrigins.has(normalizedOrigin)) {
-        return callback(null, true);
+        return callback(null, normalizedOrigin);
       }
 
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      return callback(createCorsError(origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
