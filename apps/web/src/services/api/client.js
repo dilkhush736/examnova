@@ -3,11 +3,12 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localho
 export async function apiRequest(path, options = {}) {
   const { headers: optionHeaders = {}, ...restOptions } = options;
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const hasBody = options.body !== undefined && options.body !== null;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(hasBody && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...optionHeaders,
     },
     ...restOptions,

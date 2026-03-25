@@ -48,6 +48,7 @@ Critical ones:
 - `JWT_ACCESS_SECRET=<long-random-secret>`
 - `JWT_REFRESH_SECRET=<long-random-secret>`
 - `REFRESH_TOKEN_COOKIE_SECURE=true`
+- `REFRESH_TOKEN_COOKIE_SAME_SITE=none`
 - `SMTP_*`
 - `RAZORPAY_*`
 - `AI_*`
@@ -58,6 +59,7 @@ Critical ones:
 - Render provides the external port through `PORT`
 - MongoDB Atlas must allow connections from Render
 - Set `REFRESH_TOKEN_COOKIE_SECURE=true` in production
+- Set `REFRESH_TOKEN_COOKIE_SAME_SITE=none` when frontend and backend are on separate Render domains
 - Keep `PUBLIC_SITE_URL` aligned with the frontend public domain for sitemap and canonical URLs
 - Keep `WEB_APP_URL` aligned with the frontend domain for CORS
 

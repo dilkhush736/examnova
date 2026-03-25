@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const allowedNodeEnvs = new Set(["development", "test", "production"]);
+const allowedSameSiteValues = new Set(["lax", "strict", "none"]);
 
 function stripWrappingQuotes(value) {
   const trimmed = String(value || "").trim();
@@ -70,11 +71,25 @@ function getNumber(name, fallback) {
 }
 
 function getBoolean(name, fallback = false) {
-  const value = process.env[name];
-  if (value === undefined) {
+  const value = getEnv(name);
+
+  if (value === "") {
     return fallback;
   }
-  return value === "true";
+
+  return String(value).toLowerCase() === "true";
+}
+
+function getSameSite(name, fallback = "lax") {
+  const value = String(getEnv(name, fallback)).toLowerCase();
+
+  if (!allowedSameSiteValues.has(value)) {
+    throw new Error(
+      `Environment variable ${name} must be one of: ${Array.from(allowedSameSiteValues).join(", ")}.`,
+    );
+  }
+
+  return value;
 }
 
 function getRequiredEnv(name) {
@@ -135,6 +150,10 @@ export const env = {
   jwtRefreshExpiresIn: getEnv("JWT_REFRESH_EXPIRES_IN", "30d"),
   refreshTokenCookieName: getEnv("REFRESH_TOKEN_COOKIE_NAME", "examnova_refresh"),
   refreshTokenCookieSecure: getBoolean("REFRESH_TOKEN_COOKIE_SECURE", false),
+  refreshTokenCookieSameSite: getSameSite(
+    "REFRESH_TOKEN_COOKIE_SAME_SITE",
+    nodeEnv === "production" ? "none" : "lax",
+  ),
   otpTtlMinutes: getNumber("OTP_TTL_MINUTES", 10),
   otpResendCooldownSeconds: getNumber("OTP_RESEND_COOLDOWN_SECONDS", 60),
   otpMaxAttempts: getNumber("OTP_MAX_ATTEMPTS", 5),

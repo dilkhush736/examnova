@@ -16,8 +16,8 @@ export function sanitizeUser(user) {
 export function getRefreshCookieOptions() {
   return {
     httpOnly: true,
-    secure: env.isProduction || env.refreshTokenCookieSecure,
-    sameSite: "lax",
+    secure: env.isProduction || env.refreshTokenCookieSecure || env.refreshTokenCookieSameSite === "none",
+    sameSite: env.refreshTokenCookieSameSite,
     path: "/api/v1/auth",
     maxAge: 1000 * 60 * 60 * 24 * 30,
   };
