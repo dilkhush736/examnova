@@ -40,7 +40,7 @@ export function PdfDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [error, setError] = useState("");
-  const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const [feedback, setFeedback] = useState({ type: "", message: "", showLibraryAction: false });
   const autoPurchaseAttemptedRef = useRef(false);
 
   useEffect(() => {
@@ -156,24 +156,28 @@ export function PdfDetailPage() {
       ]);
 
       if (orderResponse.data.alreadyOwned) {
-        navigate("/app/purchased-pdfs", {
-          replace: true,
-          state: {
-            message: "You already own this PDF. It is available in your purchased library.",
-          },
+        setFeedback({
+          type: "success",
+          message: "You already own this PDF. Open your purchased library to download it again.",
+          showLibraryAction: true,
         });
         return;
       }
 
+      const checkout = orderResponse.data?.checkout;
+      if (!checkout?.orderId || !checkout?.key) {
+        throw new Error("Payment checkout is not available right now. Please try again in a moment.");
+      }
+
       await new Promise((resolve, reject) => {
         const razorpay = new RazorpayCheckout({
-          key: orderResponse.data.checkout.key,
-          amount: orderResponse.data.checkout.amount,
-          currency: orderResponse.data.checkout.currency,
-          name: orderResponse.data.checkout.name,
-          description: orderResponse.data.checkout.description,
-          order_id: orderResponse.data.checkout.orderId,
-          notes: orderResponse.data.checkout.notes,
+          key: checkout.key,
+          amount: checkout.amount,
+          currency: checkout.currency,
+          name: checkout.name,
+          description: checkout.description,
+          order_id: checkout.orderId,
+          notes: checkout.notes,
           theme: { color: "#cc6f29" },
           modal: {
             ondismiss: () => reject(new Error("Payment was cancelled before completion.")),
@@ -201,7 +205,11 @@ export function PdfDetailPage() {
         razorpay.open();
       });
     } catch (requestError) {
-      setFeedback({ type: "error", message: requestError.message || "Unable to complete marketplace purchase." });
+      setFeedback({
+        type: "error",
+        message: requestError.message || "Unable to complete marketplace purchase.",
+        showLibraryAction: false,
+      });
     } finally {
       setIsPurchasing(false);
     }
@@ -231,13 +239,22 @@ export function PdfDetailPage() {
                   <i className="bi bi-bag-check" />
                   {isPurchasing ? "Opening checkout..." : isAuthenticated ? `Buy for Rs. ${listing?.priceInr || 0}` : "Login to buy"}
                 </button>
-                {isAuthenticated ? <Link className="button ghost" to="/app/purchased-pdfs"><i className="bi bi-collection" />Open library</Link> : null}
                 <Link className="button secondary" to="/marketplace"><i className="bi bi-arrow-left" />Back to marketplace</Link>
               </>
             }
           />
           {feedback.message ? (
-            <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
+            <div className="stack-section">
+              <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
+              {feedback.showLibraryAction ? (
+                <div className="hero-actions">
+                  <Link className="button ghost" to="/app/purchased-pdfs">
+                    <i className="bi bi-collection" />
+                    Open purchased library
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <section className="two-column-grid">
             <article className="detail-card">
