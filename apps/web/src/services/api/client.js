@@ -1,4 +1,27 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api/v1";
+const LOCAL_API_BASE_URL = "http://localhost:4000/api/v1";
+const KNOWN_RENDER_API_BASE_URLS = {
+  "https://examnovaai.onrender.com": "https://examnova-b9rf.onrender.com/api/v1",
+};
+
+function normalizeUrl(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/+$/, "");
+}
+
+function getApiBaseUrl() {
+  const runtimeOrigin =
+    typeof window !== "undefined" ? normalizeUrl(window.location.origin) : "";
+
+  if (runtimeOrigin && KNOWN_RENDER_API_BASE_URLS[runtimeOrigin]) {
+    return KNOWN_RENDER_API_BASE_URLS[runtimeOrigin];
+  }
+
+  return normalizeUrl(import.meta.env.VITE_API_BASE_URL) || LOCAL_API_BASE_URL;
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export async function apiRequest(path, options = {}) {
   const { headers: optionHeaders = {}, ...restOptions } = options;

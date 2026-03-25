@@ -1,4 +1,4 @@
-import { apiRequest } from "./client.js";
+import { API_BASE_URL, apiRequest } from "./client.js";
 
 function authHeaders(accessToken) {
   return {
@@ -23,7 +23,7 @@ export async function uploadDocument(accessToken, { file, sourceCategory }) {
   formData.append("document", file);
   formData.append("sourceCategory", sourceCategory);
 
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api/v1"}/uploads`, {
+  const response = await fetch(`${API_BASE_URL}/uploads`, {
     method: "POST",
     credentials: "include",
     headers: {
