@@ -14,6 +14,10 @@ import {
   updateQuestionSelections,
 } from "../../services/api/index.js";
 
+function normalizeFilterValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 export function QuestionDetectionPage() {
   const { id } = useParams();
   const { accessToken } = useAuth();
@@ -44,6 +48,11 @@ export function QuestionDetectionPage() {
 
         setDocument(documentResponse.data.document);
         setQuestions(questionsResponse.data.questions);
+        setPrompt(
+          documentResponse.data.document?.detectionPrompt ||
+            questionsResponse.data.document?.detectionPrompt ||
+            "",
+        );
       } catch (error) {
         if (active) {
           setFeedback({ type: "error", message: error.message || "Unable to load detection review data." });
@@ -65,19 +74,31 @@ export function QuestionDetectionPage() {
   }, [accessToken, id]);
 
   const filteredQuestions = questions.filter((question) => {
-    if (search && !question.questionText.toLowerCase().includes(search.toLowerCase())) {
+    const questionText = String(question.questionText || "").toLowerCase();
+    const normalizedQuestionType = normalizeFilterValue(question.inferredQuestionType);
+    const normalizedImportance = normalizeFilterValue(question.importanceFlag);
+
+    if (search && !questionText.includes(search.toLowerCase())) {
       return false;
     }
-    if (questionType !== "all" && question.inferredQuestionType !== questionType) {
+    if (questionType !== "all" && normalizedQuestionType !== questionType) {
       return false;
     }
-    if (importanceFilter !== "all" && question.importanceFlag !== importanceFilter) {
+    if (importanceFilter !== "all" && normalizedImportance !== importanceFilter) {
       return false;
     }
     return true;
   });
 
   const selectedCount = questions.filter((question) => question.selectedForGeneration).length;
+  const hasDetectedQuestions = questions.length > 0;
+  const hasVisibleQuestions = filteredQuestions.length > 0;
+
+  function resetFilters() {
+    setSearch("");
+    setQuestionType("all");
+    setImportanceFilter("all");
+  }
 
   async function handleDetect(forceRerun = false) {
     setFeedback({ type: "", message: "" });
@@ -248,16 +269,26 @@ export function QuestionDetectionPage() {
         </article>
       </div>
 
-      {filteredQuestions.length ? (
+      {hasVisibleQuestions ? (
         <div className="question-list">
           {filteredQuestions.map((question) => (
             <QuestionReviewCard key={question.id} onToggle={handleToggle} question={question} />
           ))}
         </div>
+      ) : hasDetectedQuestions ? (
+        <EmptyStateCard
+          title="No questions match the current filters"
+          description="Detected questions already exist for this document. Adjust the search or filters to show them again."
+          action={
+            <button className="button secondary" onClick={resetFilters} type="button">
+              Clear filters
+            </button>
+          }
+        />
       ) : (
         <EmptyStateCard
           title="No detected questions yet"
-          description="Run question detection first or adjust your prompt/filters to surface the right questions."
+          description="Run question detection first to build the review set for this document."
         />
       )}
     </section>
