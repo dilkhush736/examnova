@@ -9,6 +9,12 @@ function getEnv(name, fallback = "") {
   return typeof value === "string" ? value.trim() : value;
 }
 
+function normalizeOrigin(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
 function getNumber(name, fallback) {
   const value = Number(getEnv(name, fallback));
   if (Number.isNaN(value)) {
@@ -40,20 +46,39 @@ function getStringList(name, fallback) {
     .filter(Boolean);
 }
 
+function getNormalizedOriginList(name, fallback = "") {
+  return Array.from(new Set(getStringList(name, fallback).map(normalizeOrigin).filter(Boolean)));
+}
+
 const nodeEnv = getEnv("NODE_ENV", "development");
 
 if (!allowedNodeEnvs.has(nodeEnv)) {
   throw new Error(`NODE_ENV must be one of: ${Array.from(allowedNodeEnvs).join(", ")}`);
 }
 
+const webAppUrl = normalizeOrigin(getEnv("WEB_APP_URL", "http://localhost:5173"));
+const publicSiteUrl = normalizeOrigin(getEnv("PUBLIC_SITE_URL", "http://localhost:5173"));
+const apiBaseUrl = normalizeOrigin(getEnv("API_BASE_URL", "http://localhost:4000"));
+const corsAllowedOrigins = getNormalizedOriginList(
+  "CORS_ALLOWED_ORIGINS",
+  [
+    webAppUrl,
+    publicSiteUrl,
+    "https://examnovaai.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ].join(","),
+);
+
 export const env = {
   nodeEnv,
   isProduction: nodeEnv === "production",
   isDevelopment: nodeEnv === "development",
   port: getNumber("PORT", 4000),
-  webAppUrl: getEnv("WEB_APP_URL", "http://localhost:5173"),
-  publicSiteUrl: getEnv("PUBLIC_SITE_URL", "http://localhost:5173"),
-  apiBaseUrl: getEnv("API_BASE_URL", "http://localhost:4000"),
+  webAppUrl,
+  publicSiteUrl,
+  apiBaseUrl,
+  corsAllowedOrigins,
   mongodbUri: getRequiredEnv("MONGODB_URI"),
   jwtAccessSecret: getRequiredEnv("JWT_ACCESS_SECRET"),
   jwtRefreshSecret: getRequiredEnv("JWT_REFRESH_SECRET"),
