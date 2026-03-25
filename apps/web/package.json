@@ -1,0 +1,23 @@
+{
+  "name": "@examnova/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "vite preview",
+    "preview": "vite preview",
+    "lint": "node -e \"console.log('Linting will be added in a later phase')\"",
+    "typecheck": "node -e \"console.log('Type checking is not configured for the JavaScript frontend scaffold')\""
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite": "^6.2.1"
+  }
+}

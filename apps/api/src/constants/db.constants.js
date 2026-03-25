@@ -1,0 +1,17 @@
+export const COLLECTION_NAMES = {
+  USERS: "users",
+  OTP_VERIFICATIONS: "otp_verifications",
+  SESSIONS: "sessions",
+  ADMIN_UPLOADED_PDFS: "admin_uploaded_pdfs",
+  UPLOADED_DOCUMENTS: "uploaded_documents",
+  PARSED_QUESTIONS: "parsed_questions",
+  GENERATED_PDFS: "generated_pdfs",
+  PAYMENTS: "payments",
+  MARKETPLACE_LISTINGS: "marketplace_listings",
+  PURCHASES: "purchases",
+  WALLET_TRANSACTIONS: "wallet_transactions",
+  WITHDRAWAL_REQUESTS: "withdrawal_requests",
+  NOTIFICATIONS: "notifications",
+  AUDIT_LOGS: "audit_logs",
+  UPCOMING_LOCKED_PDFS: "upcoming_locked_pdfs",
+};

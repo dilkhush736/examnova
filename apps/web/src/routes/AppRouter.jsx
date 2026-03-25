@@ -1,0 +1,128 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import { PublicLayout } from "../components/layout/PublicLayout.jsx";
+import { AuthLayout } from "../components/layout/AuthLayout.jsx";
+import { DashboardLayout } from "../components/layout/DashboardLayout.jsx";
+import { AdminLayout } from "../components/layout/AdminLayout.jsx";
+import { HomePage } from "../pages/public/HomePage.jsx";
+import { MarketplacePage } from "../pages/public/MarketplacePage.jsx";
+import { PdfDetailPage } from "../pages/public/PdfDetailPage.jsx";
+import { UpcomingLockedPage } from "../pages/public/UpcomingLockedPage.jsx";
+import { UpcomingLockedDetailPage } from "../pages/public/UpcomingLockedDetailPage.jsx";
+import { SeoLandingPage } from "../pages/public/SeoLandingPage.jsx";
+import { FaqPage } from "../pages/public/FaqPage.jsx";
+import { ResourcesPage } from "../pages/public/ResourcesPage.jsx";
+import { LoginPage } from "../pages/auth/LoginPage.jsx";
+import { SignupPage } from "../pages/auth/SignupPage.jsx";
+import { VerifyOtpPage } from "../pages/auth/VerifyOtpPage.jsx";
+import { ForgotPasswordPage } from "../pages/auth/ForgotPasswordPage.jsx";
+import { ResetPasswordPage } from "../pages/auth/ResetPasswordPage.jsx";
+import { UserDashboardPage } from "../pages/app/UserDashboardPage.jsx";
+import { UploadGeneratePage } from "../pages/app/UploadGeneratePage.jsx";
+import { DocumentDetailPage } from "../pages/app/DocumentDetailPage.jsx";
+import { QuestionDetectionPage } from "../pages/app/QuestionDetectionPage.jsx";
+import { ProfilePage } from "../pages/app/ProfilePage.jsx";
+import { WalletPage } from "../pages/app/WalletPage.jsx";
+import { AccountSettingsPage } from "../pages/app/AccountSettingsPage.jsx";
+import { AnswerGenerationPage } from "../pages/app/AnswerGenerationPage.jsx";
+import { PurchasedPdfsPage } from "../pages/app/PurchasedPdfsPage.jsx";
+import { GeneratedPdfsPage } from "../pages/app/GeneratedPdfsPage.jsx";
+import { GeneratedAnswerDetailPage } from "../pages/app/GeneratedAnswerDetailPage.jsx";
+import { ListedPdfsPage } from "../pages/app/ListedPdfsPage.jsx";
+import { WithdrawalRequestsPage } from "../pages/app/WithdrawalRequestsPage.jsx";
+import { PaymentHistoryPage } from "../pages/app/PaymentHistoryPage.jsx";
+import { NotificationsPage } from "../pages/app/NotificationsPage.jsx";
+import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage.jsx";
+import { AdminAnalyticsPage } from "../pages/admin/AdminAnalyticsPage.jsx";
+import { AdminUploadsPage } from "../pages/admin/AdminUploadsPage.jsx";
+import { AdminUpcomingPdfsPage } from "../pages/admin/AdminUpcomingPdfsPage.jsx";
+import { AdminUsersPage } from "../pages/admin/AdminUsersPage.jsx";
+import { AdminListingsPage } from "../pages/admin/AdminListingsPage.jsx";
+import { AdminCommercePage } from "../pages/admin/AdminCommercePage.jsx";
+import { AdminWithdrawalsPage } from "../pages/admin/AdminWithdrawalsPage.jsx";
+import { AdminModerationPage } from "../pages/admin/AdminModerationPage.jsx";
+import { AdminNotificationsPage } from "../pages/admin/AdminNotificationsPage.jsx";
+import { AdminAuditLogsPage } from "../pages/admin/AdminAuditLogsPage.jsx";
+import { NotFoundPage } from "../pages/shared/NotFoundPage.jsx";
+import { ProtectedRoute } from "../guards/ProtectedRoute.jsx";
+import { AdminRoute } from "../guards/AdminRoute.jsx";
+import { PublicOnlyRoute } from "../guards/PublicOnlyRoute.jsx";
+
+export function AppRouter() {
+  return (
+    <Routes>
+      <Route element={<PublicLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="/marketplace" element={<MarketplacePage />} />
+        <Route path="/pdf/:slug" element={<PdfDetailPage />} />
+        <Route path="/upcoming" element={<UpcomingLockedPage />} />
+        <Route path="/upcoming/:slug" element={<UpcomingLockedDetailPage />} />
+        <Route path="/university/:slug" element={<SeoLandingPage forcedType="university" />} />
+        <Route path="/branch/:slug" element={<SeoLandingPage forcedType="branch" />} />
+        <Route path="/semester/:slug" element={<SeoLandingPage forcedType="semester" />} />
+        <Route path="/subject/:slug" element={<SeoLandingPage forcedType="subject" />} />
+        <Route path="/exam-preparation/:slug" element={<SeoLandingPage forcedType="exam-preparation" />} />
+        <Route path="/important-questions/:slug" element={<SeoLandingPage forcedType="important-questions" />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/resources" element={<ResourcesPage />} />
+      </Route>
+
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+        <Route path="/signup" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
+        <Route path="/verify-otp" element={<PublicOnlyRoute><VerifyOtpPage /></PublicOnlyRoute>} />
+        <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
+        <Route path="/reset-password" element={<PublicOnlyRoute><ResetPasswordPage /></PublicOnlyRoute>} />
+      </Route>
+
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="dashboard" element={<UserDashboardPage />} />
+        <Route path="upload-generate" element={<UploadGeneratePage />} />
+        <Route path="documents/:id" element={<DocumentDetailPage />} />
+        <Route path="documents/:id/questions" element={<QuestionDetectionPage />} />
+        <Route path="documents/:id/answers" element={<AnswerGenerationPage />} />
+        <Route path="generated-pdfs" element={<GeneratedPdfsPage />} />
+        <Route path="generated-pdfs/:id" element={<GeneratedAnswerDetailPage />} />
+        <Route path="purchased-pdfs" element={<PurchasedPdfsPage />} />
+        <Route path="listed-pdfs" element={<ListedPdfsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="wallet" element={<WalletPage />} />
+        <Route path="withdrawals" element={<WithdrawalRequestsPage />} />
+        <Route path="payments" element={<PaymentHistoryPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="settings" element={<AccountSettingsPage />} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="analytics" element={<AdminAnalyticsPage />} />
+        <Route path="moderation" element={<AdminModerationPage />} />
+        <Route path="alerts" element={<AdminNotificationsPage />} />
+        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+        <Route path="uploads" element={<AdminUploadsPage />} />
+        <Route path="upcoming" element={<AdminUpcomingPdfsPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="listings" element={<AdminListingsPage />} />
+        <Route path="commerce" element={<AdminCommercePage />} />
+        <Route path="withdrawals" element={<AdminWithdrawalsPage />} />
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}

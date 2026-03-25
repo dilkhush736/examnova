@@ -1,0 +1,21 @@
+{
+  "name": "examnova-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Production-ready monorepo for ExamNova AI.",
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:web",
+    "dev:web": "npm run dev --workspace @examnova/web",
+    "dev:api": "npm run dev --workspace @examnova/api",
+    "start:web": "npm run preview --workspace @examnova/web",
+    "start:api": "npm run start --workspace @examnova/api",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  }
+}

@@ -1,0 +1,53 @@
+import mongoose from "mongoose";
+import { COLLECTION_NAMES } from "../constants/db.constants.js";
+
+const taxonomySchema = new mongoose.Schema(
+  {
+    university: { type: String, required: true, trim: true, index: true },
+    branch: { type: String, required: true, trim: true, index: true },
+    year: { type: String, required: true, trim: true },
+    semester: { type: String, required: true, trim: true, index: true },
+    subject: { type: String, required: true, trim: true, index: true },
+  },
+  { _id: false },
+);
+
+const adminUploadedPdfSchema = new mongoose.Schema(
+  {
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    listingId: { type: mongoose.Schema.Types.ObjectId, ref: "MarketplaceListing", index: true },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
+    originalName: { type: String, required: true, trim: true },
+    mimeType: { type: String, required: true, trim: true },
+    sizeInBytes: { type: Number, required: true },
+    storageKey: { type: String, required: true },
+    storageUrl: { type: String, default: "" },
+    priceInr: { type: Number, required: true },
+    currency: { type: String, default: "INR" },
+    taxonomy: { type: taxonomySchema, required: true },
+    tags: [{ type: String, trim: true }],
+    coverImageUrl: { type: String, default: "" },
+    seoTitle: { type: String, default: "" },
+    seoDescription: { type: String, default: "" },
+    visibility: { type: String, default: "draft", index: true },
+    isFeatured: { type: Boolean, default: false, index: true },
+    publishedAt: { type: Date, default: null },
+  },
+  {
+    timestamps: true,
+    collection: COLLECTION_NAMES.ADMIN_UPLOADED_PDFS,
+  },
+);
+
+adminUploadedPdfSchema.index({
+  "taxonomy.university": 1,
+  "taxonomy.branch": 1,
+  "taxonomy.year": 1,
+  "taxonomy.semester": 1,
+  "taxonomy.subject": 1,
+});
+
+export const AdminUploadedPdf =
+  mongoose.models.AdminUploadedPdf ||
+  mongoose.model("AdminUploadedPdf", adminUploadedPdfSchema);

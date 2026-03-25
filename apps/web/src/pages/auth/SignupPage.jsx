@@ -1,0 +1,88 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth.js";
+
+export function SignupPage() {
+  const { signup } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    setIsSubmitting(true);
+
+    try {
+      await signup(form);
+      setSuccess("Account created. We sent an OTP to your email.");
+      navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`, {
+        state: {
+          email: form.email,
+          purpose: "email_verification",
+        },
+      });
+    } catch (requestError) {
+      setError(requestError.message || "Unable to create your account.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form className="form-card" onSubmit={handleSubmit}>
+      <h2>Signup</h2>
+      <p className="support-copy">Create your account and continue into the email OTP verification flow.</p>
+      <label className="field">
+        <span>Full name</span>
+        <input
+          className="input"
+          type="text"
+          value={form.name}
+          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+          placeholder="Your name"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>Email</span>
+        <input
+          className="input"
+          type="email"
+          value={form.email}
+          onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+          placeholder="you@example.com"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>Password</span>
+        <input
+          className="input"
+          type="password"
+          value={form.password}
+          minLength={8}
+          onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+          placeholder="At least 8 characters"
+          required
+        />
+      </label>
+      {error ? <p className="form-error">{error}</p> : null}
+      {success ? <p className="form-success">{success}</p> : null}
+      <button className="button primary full-width" disabled={isSubmitting} type="submit">
+        {isSubmitting ? "Creating account..." : "Create account"}
+      </button>
+      <p className="text-link-row">
+        <Link to="/verify-otp">Verify OTP</Link>
+        <Link to="/login">Already have an account?</Link>
+      </p>
+    </form>
+  );
+}

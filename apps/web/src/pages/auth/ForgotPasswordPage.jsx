@@ -1,0 +1,57 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth.js";
+
+export function ForgotPasswordPage() {
+  const { forgotPassword } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    setIsSubmitting(true);
+
+    try {
+      await forgotPassword({ email });
+      setSuccess("If your account exists, a reset OTP has been sent.");
+      navigate(`/reset-password?email=${encodeURIComponent(email)}`, {
+        state: {
+          email,
+          purpose: "password_reset",
+        },
+      });
+    } catch (requestError) {
+      setError(requestError.message || "Unable to process your request.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form className="form-card" onSubmit={handleSubmit}>
+      <h2>Forgot Password</h2>
+      <p className="support-copy">Request a password reset OTP and continue to the reset form.</p>
+      <label className="field">
+        <span>Email</span>
+        <input
+          className="input"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          required
+        />
+      </label>
+      {error ? <p className="form-error">{error}</p> : null}
+      {success ? <p className="form-success">{success}</p> : null}
+      <button className="button primary full-width" disabled={isSubmitting} type="submit">
+        {isSubmitting ? "Sending..." : "Send reset OTP"}
+      </button>
+    </form>
+  );
+}

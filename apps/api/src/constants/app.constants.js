@@ -1,0 +1,39 @@
+export const APP_NAME = "ExamNova AI";
+export const API_PREFIX = "/api/v1";
+export const API_VERSION = "v1";
+export const USER_ROLES = {
+  STUDENT: "student",
+  SELLER: "seller",
+  ADMIN: "admin",
+};
+
+export const USER_STATUS = {
+  ACTIVE: "active",
+  PENDING_VERIFICATION: "pending_verification",
+  BLOCKED: "blocked",
+  SUSPENDED: "suspended",
+};
+
+export const PURCHASE_TYPES = {
+  PRIVATE_PDF: "private_pdf",
+  MARKETPLACE: "marketplace",
+};
+
+export const MARKETPLACE_SPLIT = {
+  ADMIN_PERCENT: 30,
+  SELLER_PERCENT: 70,
+};
+
+export const PAYMENT_STATUS = {
+  PENDING: "pending",
+  PAID: "paid",
+  FAILED: "failed",
+  REFUNDED: "refunded",
+};
+
+export const LISTING_VISIBILITY = {
+  DRAFT: "draft",
+  PUBLISHED: "published",
+  LOCKED_UPCOMING: "locked_upcoming",
+  ARCHIVED: "archived",
+};

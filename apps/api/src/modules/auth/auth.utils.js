@@ -1,0 +1,24 @@
+import { env } from "../../config/index.js";
+
+export function sanitizeUser(user) {
+  return {
+    id: user._id?.toString?.() || user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isEmailVerified: user.isEmailVerified,
+    isBlocked: Boolean(user.isBlocked || user.status === "blocked"),
+    status: user.status,
+    createdAt: user.createdAt,
+  };
+}
+
+export function getRefreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: env.isProduction || env.refreshTokenCookieSecure,
+    sameSite: "lax",
+    path: "/api/v1/auth",
+    maxAge: 1000 * 60 * 60 * 24 * 30,
+  };
+}
