@@ -1,9 +1,11 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { SeoHead } from "../../seo/SeoHead.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 export function PublicLayout() {
   const { isAuthenticated, role } = useAuth();
+  const location = useLocation();
+  const isPdfDetailPage = location.pathname.startsWith("/pdf/");
   const workspaceHref = isAuthenticated ? (role === "admin" ? "/admin/profile" : "/app/profile") : "/login";
   const workspaceLabel = isAuthenticated ? (role === "admin" ? "Admin center" : "My account") : "Login";
 
@@ -39,25 +41,27 @@ export function PublicLayout() {
       <main className="page-shell">
         <Outlet />
       </main>
-      <footer className="footer-bar public-footer simple-public-footer">
-        <div className="simple-footer-grid">
-          <div className="footer-block">
-            <h3>ExamNova AI</h3>
-            <p className="support-copy">A simple public notes marketplace focused on browsing and purchasing PDFs.</p>
-          </div>
-          <div className="footer-block">
-            <h4>Quick links</h4>
-            <div className="footer-links">
-              <Link className="footer-link-pill" to="/marketplace">Marketplace</Link>
-              <Link className="footer-link-pill" to={workspaceHref}>{workspaceLabel}</Link>
+      {!isPdfDetailPage ? (
+        <footer className="footer-bar public-footer simple-public-footer">
+          <div className="simple-footer-grid">
+            <div className="footer-block">
+              <h3>ExamNova AI</h3>
+              <p className="support-copy">A simple public notes marketplace focused on browsing and purchasing PDFs.</p>
+            </div>
+            <div className="footer-block">
+              <h4>Quick links</h4>
+              <div className="footer-links">
+                <Link className="footer-link-pill" to="/marketplace">Marketplace</Link>
+                <Link className="footer-link-pill" to={workspaceHref}>{workspaceLabel}</Link>
+              </div>
+            </div>
+            <div className="footer-block">
+              <h4>Purchase flow</h4>
+              <p className="support-copy">Open any PDF card, enter your full name, complete payment, and download securely.</p>
             </div>
           </div>
-          <div className="footer-block">
-            <h4>Purchase flow</h4>
-            <p className="support-copy">Open any PDF card, review details, complete payment, and download securely.</p>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      ) : null}
     </div>
   );
 }

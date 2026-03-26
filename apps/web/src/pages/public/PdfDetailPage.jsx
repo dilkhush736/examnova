@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { EmptyStateCard } from "../../components/ui/EmptyStateCard.jsx";
-import { InternalLinkGrid } from "../../components/ui/InternalLinkGrid.jsx";
 import { LoadingCard } from "../../components/ui/LoadingCard.jsx";
-import { MarketplaceListingCard } from "../../components/ui/MarketplaceListingCard.jsx";
-import { PageHero } from "../../components/ui/PageHero.jsx";
-import { SectionHeader } from "../../components/ui/SectionHeader.jsx";
 import { StatusBadge } from "../../components/ui/StatusBadge.jsx";
 import { SeoHead } from "../../seo/SeoHead.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -13,34 +9,20 @@ import {
   createMarketplaceOrder,
   createPublicMarketplaceOrder,
   downloadGuestLibraryItem,
+  downloadLibraryItem,
   fetchPublicListingDetail,
   verifyMarketplacePayment,
   verifyPublicMarketplacePayment,
 } from "../../services/api/index.js";
 import { loadRazorpayCheckout } from "../../utils/loadRazorpayCheckout.js";
-import {
-  buildBreadcrumbSchema,
-  buildProductSchema,
-  buildSeoPayload,
-} from "../../utils/seo.js";
-
-function createTaxonomyLink(prefix, value) {
-  if (!value) {
-    return null;
-  }
-
-  return {
-    label: value,
-    href: `/${prefix}/${value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
-  };
-}
+import { buildBreadcrumbSchema, buildProductSchema, buildSeoPayload } from "../../utils/seo.js";
 
 const DEFAULT_FEEDBACK = {
   type: "",
   message: "",
   detail: "",
-  showLibraryAction: false,
   showGuestDownload: false,
+  showAccountDownload: false,
 };
 
 function normalizeGuestName(value) {
@@ -109,18 +91,18 @@ function triggerBlobDownload(blob, title) {
 
 export function PdfDetailPage() {
   const { slug } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { accessToken, isAuthenticated } = useAuth();
-  const [state, setState] = useState({ listing: null, relatedListings: [] });
+  const { accessToken, isAuthenticated, user } = useAuth();
+  const [listing, setListing] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isGuestDownloading, setIsGuestDownloading] = useState(false);
+  const [isAccountDownloading, setIsAccountDownloading] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState(DEFAULT_FEEDBACK);
   const [guestFullName, setGuestFullName] = useState("");
   const [guestAccess, setGuestAccess] = useState(null);
+  const [accountPurchaseId, setAccountPurchaseId] = useState("");
   const autoPurchaseAttemptedRef = useRef(false);
 
   useEffect(() => {
@@ -129,10 +111,11 @@ export function PdfDetailPage() {
     async function loadListing() {
       setIsLoading(true);
       setError("");
+
       try {
         const response = await fetchPublicListingDetail(slug);
         if (active) {
-          setState(response.data);
+          setListing(response.data.listing || null);
         }
       } catch (requestError) {
         if (active) {
@@ -154,39 +137,11 @@ export function PdfDetailPage() {
     };
   }, [slug]);
 
-  const listing = state.listing;
-  const universityLink = createTaxonomyLink("university", listing?.taxonomy?.university);
-  const branchLink = createTaxonomyLink("branch", listing?.taxonomy?.branch);
-  const semesterLink = createTaxonomyLink("semester", listing?.taxonomy?.semester);
-  const subjectLink = createTaxonomyLink("subject", listing?.taxonomy?.subject);
-  const examPreparationLink = createTaxonomyLink("exam-preparation", listing?.taxonomy?.subject);
-  const importantQuestionsLink = createTaxonomyLink("important-questions", listing?.taxonomy?.subject);
-  const sourceLabel = listing?.sellerSourceLabel || "Marketplace Seller";
-  const seoPayload = listing
-    ? buildSeoPayload({
-        title: listing.seoTitle || listing.title,
-        description:
-          listing.seoDescription ||
-          listing.description ||
-          "Compact exam-ready PDF listing with structured academic categorization.",
-        pathname: `/pdf/${listing.slug}`,
-        type: "product",
-        jsonLd: [
-          buildProductSchema({
-            title: listing.title,
-            description: listing.description,
-            pathname: `/pdf/${listing.slug}`,
-            priceInr: listing.priceInr,
-            sellerName: listing.sellerName,
-          }),
-          buildBreadcrumbSchema([
-            { label: "Home", href: "/" },
-            { label: "Marketplace", href: "/marketplace" },
-            { label: listing.title, href: `/pdf/${listing.slug}` },
-          ]),
-        ],
-      })
-    : null;
+  useEffect(() => {
+    if (isAuthenticated && user?.name && !guestFullName) {
+      setGuestFullName(user.name);
+    }
+  }, [guestFullName, isAuthenticated, user?.name]);
 
   useEffect(() => {
     if (!listing?.id) {
@@ -203,15 +158,15 @@ export function PdfDetailPage() {
     if (storedGuestAccess && !feedback.message) {
       setFeedback({
         type: "success",
-        message: `Your guest purchase for "${listing.title}" is still active in this tab.`,
+        message: `Your download access for "${listing.title}" is still active in this tab.`,
         detail: storedGuestAccess.expiresAt
-          ? `Secure re-download access remains available until ${new Date(storedGuestAccess.expiresAt).toLocaleString()}.`
+          ? `Secure guest access remains active until ${new Date(storedGuestAccess.expiresAt).toLocaleString()}.`
           : "",
-        showLibraryAction: false,
         showGuestDownload: true,
+        showAccountDownload: false,
       });
     }
-  }, [listing?.id, listing?.title]);
+  }, [feedback.message, listing?.id, listing?.title]);
 
   useEffect(() => {
     if (
@@ -258,16 +213,50 @@ export function PdfDetailPage() {
       if (!silent) {
         setFeedback({
           type: "error",
-          message: requestError.message || "Unable to download your purchased PDF.",
-          detail: "If payment already succeeded, restart checkout on this page to generate a fresh secure download token.",
-          showLibraryAction: false,
+          message: requestError.message || "Unable to download your PDF.",
+          detail: "If payment already succeeded, start the download flow again from this page.",
           showGuestDownload: false,
+          showAccountDownload: false,
         });
       }
 
       throw requestError;
     } finally {
       setIsGuestDownloading(false);
+    }
+  }
+
+  async function handleAccountDownload(purchaseId = accountPurchaseId, { silent = false } = {}) {
+    if (!accessToken || !purchaseId) {
+      if (!silent) {
+        setFeedback({
+          ...DEFAULT_FEEDBACK,
+          type: "error",
+          message: "Your account download is not ready yet.",
+        });
+      }
+      return;
+    }
+
+    setIsAccountDownloading(true);
+
+    try {
+      const response = await downloadLibraryItem(accessToken, purchaseId);
+      triggerBlobDownload(response.blob, listing?.title);
+    } catch (requestError) {
+      if (!silent) {
+        setFeedback({
+          type: "error",
+          message: requestError.message || "Unable to download this PDF from your account.",
+          detail: "Try the download button again in a moment.",
+          showGuestDownload: false,
+          showAccountDownload: Boolean(purchaseId),
+        });
+      }
+
+      throw requestError;
+    } finally {
+      setIsAccountDownloading(false);
     }
   }
 
@@ -282,13 +271,27 @@ export function PdfDetailPage() {
     ]);
 
     if (orderResponse.data.alreadyOwned) {
-      setFeedback({
-        type: "success",
-        message: "You already own this PDF. Open your purchased library to download it again.",
-        detail: "",
-        showLibraryAction: true,
-        showGuestDownload: false,
-      });
+      const existingPurchaseId = orderResponse.data?.purchase?.id || "";
+      setAccountPurchaseId(existingPurchaseId);
+
+      try {
+        await handleAccountDownload(existingPurchaseId, { silent: true });
+        setFeedback({
+          type: "success",
+          message: `You already own "${listing.title}". The download started from your account access.`,
+          detail: "",
+          showGuestDownload: false,
+          showAccountDownload: Boolean(existingPurchaseId),
+        });
+      } catch {
+        setFeedback({
+          type: "success",
+          message: `You already own "${listing.title}".`,
+          detail: "Use the download button below to fetch the PDF from your account.",
+          showGuestDownload: false,
+          showAccountDownload: Boolean(existingPurchaseId),
+        });
+      }
       return;
     }
 
@@ -297,7 +300,7 @@ export function PdfDetailPage() {
       throw new Error("Payment checkout is not available right now. Please try again in a moment.");
     }
 
-    await new Promise((resolve, reject) => {
+    const purchaseId = await new Promise((resolve, reject) => {
       const razorpay = new RazorpayCheckout({
         key: checkout.key,
         amount: checkout.amount,
@@ -312,18 +315,12 @@ export function PdfDetailPage() {
         },
         handler: async (response) => {
           try {
-            await verifyMarketplacePayment(accessToken, {
+            const verificationResponse = await verifyMarketplacePayment(accessToken, {
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
             });
-            navigate("/app/purchased-pdfs", {
-              replace: true,
-              state: {
-                message: `Purchase completed successfully. "${listing.title}" is now available in your library.`,
-              },
-            });
-            resolve();
+            resolve(verificationResponse.data?.purchase?.id || "");
           } catch (requestError) {
             reject(requestError);
           }
@@ -332,12 +329,37 @@ export function PdfDetailPage() {
 
       razorpay.open();
     });
+
+    if (!purchaseId) {
+      throw new Error("Payment succeeded, but account download access could not be prepared.");
+    }
+
+    setAccountPurchaseId(purchaseId);
+
+    try {
+      await handleAccountDownload(purchaseId, { silent: true });
+      setFeedback({
+        type: "success",
+        message: `Payment successful. "${listing.title}" is now downloading from your account access.`,
+        detail: "",
+        showGuestDownload: false,
+        showAccountDownload: true,
+      });
+    } catch {
+      setFeedback({
+        type: "success",
+        message: `Payment successful. "${listing.title}" is unlocked in your account.`,
+        detail: "Use the download button below if the file did not start automatically.",
+        showGuestDownload: false,
+        showAccountDownload: true,
+      });
+    }
   }
 
   async function handlePublicPurchase() {
     const normalizedGuestName = normalizeGuestName(guestFullName);
     if (!normalizedGuestName) {
-      throw new Error("Enter your full name before starting secure checkout.");
+      throw new Error("Enter your full name before continuing.");
     }
 
     const [RazorpayCheckout, orderResponse] = await Promise.all([
@@ -393,12 +415,12 @@ export function PdfDetailPage() {
     setGuestFullName(normalizedGuestName);
     setFeedback({
       type: "success",
-      message: `Payment successful. "${listing.title}" is now ready to download securely.`,
+      message: `Payment successful. "${listing.title}" is ready to download.`,
       detail: nextGuestAccess.expiresAt
-        ? `Secure guest access is active in this tab until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
-        : "Use the secure download button below if the file does not start automatically.",
-      showLibraryAction: false,
+        ? `This guest download stays active in this tab until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
+        : "Use the download button below if the file does not start automatically.",
       showGuestDownload: true,
+      showAccountDownload: false,
     });
 
     try {
@@ -406,12 +428,12 @@ export function PdfDetailPage() {
     } catch {
       setFeedback({
         type: "success",
-        message: `Payment successful. "${listing.title}" is unlocked, but auto-download did not start.`,
+        message: `Payment successful. "${listing.title}" is unlocked.`,
         detail: nextGuestAccess.expiresAt
-          ? `Use the secure download button below. This guest access stays active until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
-          : "Use the secure download button below.",
-        showLibraryAction: false,
+          ? `Use the download button below. Guest access remains active until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
+          : "Use the download button below.",
         showGuestDownload: true,
+        showAccountDownload: false,
       });
     }
   }
@@ -433,263 +455,202 @@ export function PdfDetailPage() {
     } catch (requestError) {
       setFeedback({
         type: "error",
-        message: requestError.message || "Unable to complete marketplace purchase.",
+        message: requestError.message || "Unable to complete the download flow.",
         detail: "",
-        showLibraryAction: false,
         showGuestDownload: false,
+        showAccountDownload: false,
       });
     } finally {
       setIsPurchasing(false);
     }
   }
 
+  function handlePrimaryAction() {
+    if (feedback.showGuestDownload && guestAccess) {
+      handleGuestDownload();
+      return;
+    }
+
+    if (feedback.showAccountDownload && accountPurchaseId) {
+      handleAccountDownload();
+      return;
+    }
+
+    handlePurchase();
+  }
+
+  function getPrimaryButtonLabel() {
+    if (feedback.showGuestDownload && guestAccess) {
+      return isGuestDownloading ? "Preparing download..." : "Download PDF";
+    }
+
+    if (feedback.showAccountDownload && accountPurchaseId) {
+      return isAccountDownloading ? "Preparing download..." : "Download PDF";
+    }
+
+    if (isPurchasing) {
+      return "Opening secure download...";
+    }
+
+    return `Download PDF - Rs. ${listing?.priceInr || 0}`;
+  }
+
+  const seoPayload = listing
+    ? buildSeoPayload({
+        title: listing.seoTitle || listing.title,
+        description:
+          listing.seoDescription ||
+          listing.description ||
+          "Compact exam-ready PDF listing with structured academic categorization.",
+        pathname: `/pdf/${listing.slug}`,
+        type: "product",
+        jsonLd: [
+          buildProductSchema({
+            title: listing.title,
+            description: listing.description,
+            pathname: `/pdf/${listing.slug}`,
+            priceInr: listing.priceInr,
+            sellerName: listing.sellerName,
+          }),
+          buildBreadcrumbSchema([
+            { label: "Home", href: "/" },
+            { label: "Marketplace", href: "/marketplace" },
+            { label: listing.title, href: `/pdf/${listing.slug}` },
+          ]),
+        ],
+      })
+    : null;
+
+  const previewBuyerName = normalizeGuestName(guestFullName) || "Your full name";
+  const sourceLabel = listing?.sellerSourceLabel || "Marketplace Seller";
+  const sourceTone = listing?.sourceType === "admin_upload" ? "warning" : "neutral";
+  const academicSummary = [
+    listing?.taxonomy?.university,
+    listing?.taxonomy?.branch,
+    listing?.taxonomy?.semester ? `Semester ${listing.taxonomy.semester}` : null,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+  const detailTags = [
+    listing?.taxonomy?.year,
+    listing?.studyMetadata?.examFocus,
+    listing?.studyMetadata?.difficultyLevel,
+  ].filter(Boolean);
+
   return (
     <>
       {seoPayload ? <SeoHead {...seoPayload} /> : null}
       {isLoading ? (
-        <LoadingCard message="Loading marketplace PDF detail..." />
+        <LoadingCard message="Loading PDF..." />
       ) : error ? (
-        <EmptyStateCard title="Listing unavailable" description={error} />
+        <EmptyStateCard title="PDF unavailable" description={error} />
       ) : (
-        <>
-          <PageHero
-            eyebrow={listing?.taxonomy?.subject || "PDF detail"}
-            title={listing?.title || slug || "Listing"}
-            description={listing?.description || "Compact exam-ready PDF listing for focused revision."}
-            metrics={[
-              { label: "Price", value: `Rs. ${listing?.priceInr || 0}` },
-              { label: "Views", value: `${listing?.viewCount || 0}` },
-              { label: "Access", value: isAuthenticated ? "Permanent library" : "Verified download" },
-            ]}
-            actions={
-              <>
-                <button className="button primary" disabled={isPurchasing} onClick={handlePurchase} type="button">
-                  <i className="bi bi-bag-check" />
-                  {isPurchasing
-                    ? "Opening checkout..."
-                    : `Buy for Rs. ${listing?.priceInr || 0}`}
-                </button>
-                <Link className="button secondary" to="/marketplace"><i className="bi bi-arrow-left" />Back to marketplace</Link>
-              </>
-            }
-          />
-          {feedback.message ? (
-            <div className="stack-section">
-              <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
-              {feedback.detail ? <p className="support-copy marketplace-purchase-feedback-detail">{feedback.detail}</p> : null}
-              {feedback.showLibraryAction ? (
-                <div className="hero-actions">
-                  <Link className="button ghost" to="/app/purchased-pdfs">
-                    <i className="bi bi-collection" />
-                    Open purchased library
-                  </Link>
-                </div>
-              ) : null}
-              {feedback.showGuestDownload && guestAccess ? (
-                <div className="hero-actions">
-                  <button className="button ghost" disabled={isGuestDownloading} onClick={() => handleGuestDownload()} type="button">
-                    <i className="bi bi-download" />
-                    {isGuestDownloading ? "Preparing download..." : "Secure download PDF"}
-                  </button>
-                </div>
-              ) : null}
+        <section className="stack-section simple-pdf-detail-page">
+          <article className="detail-card simple-pdf-detail-shell">
+            <div className="simple-pdf-detail-copy">
+              <Link className="inline-link-chip" to="/marketplace">
+                <i className="bi bi-arrow-left" />
+                Back to marketplace
+              </Link>
+              <p className="eyebrow">{listing?.taxonomy?.subject || "PDF detail"}</p>
+              <h1>{listing?.title || slug || "PDF"}</h1>
+              <p className="support-copy">
+                {listing?.description || "Enter your full name, continue to secure payment, and download this PDF from one simple page."}
+              </p>
+              <div className="simple-card-chip-row">
+                <StatusBadge tone={sourceTone}>{sourceLabel}</StatusBadge>
+                <StatusBadge tone="success">Rs. {listing?.priceInr || 0}</StatusBadge>
+              </div>
+              <div className="marketplace-taxonomy simple-card-tags">
+                {detailTags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
             </div>
-          ) : null}
-          <section className="two-column-grid marketplace-purchase-shell">
-            <article className="detail-card marketplace-checkout-card">
-              <SectionHeader
-                eyebrow={isAuthenticated ? "Account checkout" : "Guest checkout"}
-                title={isAuthenticated ? "Buy with your ExamNova account" : "Buy without signup"}
-                description={
-                  isAuthenticated
-                    ? "Complete secure checkout and this PDF will be added to your purchased library."
-                    : "Enter your full name, pay securely, and download this marketplace PDF right after verification."
-                }
-              />
-              {!isAuthenticated ? (
+
+            <div className="two-column-grid simple-pdf-detail-grid">
+              <article className="detail-card simple-pdf-preview-card">
+                <div className="simple-pdf-placeholder-sheet">
+                  <div className="simple-pdf-placeholder-head">
+                    <span className="simple-preview-chip">PDF placeholder</span>
+                    <span className="simple-preview-price">Rs. {listing?.priceInr || 0}</span>
+                  </div>
+                  <strong className="simple-placeholder-title">{listing?.title}</strong>
+                  <p className="support-copy">{academicSummary || "Structured academic PDF"}</p>
+                  <div className="simple-placeholder-divider" />
+                  <span className="info-label">Name on placeholder</span>
+                  <strong className="simple-placeholder-name">{previewBuyerName}</strong>
+                  <p className="support-copy">
+                    The name above updates live from the full name field so the page feels personal before download.
+                  </p>
+                </div>
+              </article>
+
+              <article className="detail-card simple-pdf-download-panel">
+                <p className="eyebrow">Download PDF</p>
+                <h2>Enter full name and continue</h2>
+                <p className="support-copy">
+                  This page only keeps the selected PDF details and a simple download flow. No extra sections, no extra distractions.
+                </p>
+
                 <label className="field">
                   <span>Full name</span>
                   <input
+                    autoComplete="name"
                     className="input"
-                    type="text"
-                    value={guestFullName}
+                    disabled={isPurchasing}
                     onChange={(event) => setGuestFullName(event.target.value)}
                     placeholder="Enter your full name"
-                    autoComplete="name"
-                    disabled={isPurchasing}
+                    type="text"
+                    value={guestFullName}
                   />
                 </label>
-              ) : (
-                <div className="marketplace-taxonomy">
-                  <span>Signed-in purchase</span>
-                  <span>Library access after payment</span>
-                  <span>Re-download anytime</span>
+
+                <div className="simple-pdf-meta-list">
+                  <div>
+                    <span className="info-label">University</span>
+                    <strong>{listing?.taxonomy?.university || "-"}</strong>
+                  </div>
+                  <div>
+                    <span className="info-label">Branch</span>
+                    <strong>{listing?.taxonomy?.branch || "-"}</strong>
+                  </div>
+                  <div>
+                    <span className="info-label">Semester</span>
+                    <strong>{listing?.taxonomy?.semester ? `Semester ${listing.taxonomy.semester}` : "-"}</strong>
+                  </div>
+                  <div>
+                    <span className="info-label">Seller</span>
+                    <strong>{listing?.sellerName || "ExamNova Seller"}</strong>
+                  </div>
                 </div>
-              )}
-              <p className="support-copy">
-                {isAuthenticated
-                  ? "Your secure payment is verified server-side before the PDF is added to your library."
-                  : "Guest checkout asks only for your full name here. Payment happens inside Razorpay's secure checkout and the download opens only after backend verification."}
-              </p>
-              <div className="hero-actions">
-                <button className="button primary" disabled={isPurchasing} onClick={handlePurchase} type="button">
-                  <i className="bi bi-shield-lock" />
-                  {isPurchasing
-                    ? "Opening checkout..."
-                    : isAuthenticated
-                      ? `Buy for Rs. ${listing?.priceInr || 0}`
-                      : `Secure guest checkout for Rs. ${listing?.priceInr || 0}`}
+
+                {feedback.message ? (
+                  <div className="stack-section">
+                    <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
+                    {feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}
+                  </div>
+                ) : null}
+
+                <button
+                  className="button primary full-width"
+                  disabled={isPurchasing || isGuestDownloading || isAccountDownloading}
+                  onClick={handlePrimaryAction}
+                  type="button"
+                >
+                  <i className="bi bi-download" />
+                  {getPrimaryButtonLabel()}
                 </button>
-                {!isAuthenticated ? (
-                  <Link
-                    className="button ghost"
-                    to="/login"
-                    state={{
-                      from: {
-                        pathname: location.pathname,
-                        search: location.search,
-                      },
-                    }}
-                  >
-                    <i className="bi bi-person-badge" />
-                    Login for library access
-                  </Link>
-                ) : (
-                  <Link className="button ghost" to="/app/purchased-pdfs">
-                    <i className="bi bi-collection" />
-                    Open purchased library
-                  </Link>
-                )}
-              </div>
-            </article>
-            <article className="detail-card marketplace-checkout-note">
-              <SectionHeader
-                eyebrow="Trust and delivery"
-                title="What happens after payment"
-                description="The file is never exposed directly. Download access is created only after successful Razorpay verification."
-              />
-              <div className="marketplace-taxonomy">
-                <StatusBadge tone="warning">{sourceLabel}</StatusBadge>
-                <span>Secure Razorpay payment</span>
-                <span>Server-side verification</span>
-                <span>{isAuthenticated ? "Account library access" : "Guest secure download"}</span>
-              </div>
-              <p className="support-copy">
-                Sold by {listing?.sellerName || "ExamNova Seller"} through the public marketplace. This flow is designed so first-time buyers can complete a purchase without confusion.
-              </p>
-              {!isAuthenticated ? (
+
                 <p className="support-copy">
-                  If you prefer permanent account-based access, you can still login first. Otherwise, guest checkout will work with only your full name and payment.
+                  {isAuthenticated
+                    ? "Signed-in purchases download through your secure account library after verification."
+                    : "Guest download asks only for your full name here. Payment stays inside secure Razorpay checkout and the PDF unlocks only after verification."}
                 </p>
-              ) : null}
-            </article>
-          </section>
-          <section className="two-column-grid">
-            <article className="detail-card">
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">Academic fit</p>
-                  <h2>Structured category context</h2>
-                </div>
-              </div>
-              <div className="info-grid">
-                <div><span className="info-label">University</span><strong>{listing?.taxonomy?.university}</strong></div>
-                <div><span className="info-label">Branch</span><strong>{listing?.taxonomy?.branch}</strong></div>
-                <div><span className="info-label">Year</span><strong>{listing?.taxonomy?.year}</strong></div>
-                <div><span className="info-label">Semester</span><strong>{listing?.taxonomy?.semester ? `Semester ${listing.taxonomy.semester}` : "-"}</strong></div>
-                <div><span className="info-label">Subject</span><strong>{listing?.taxonomy?.subject}</strong></div>
-                <div><span className="info-label">Price</span><strong>Rs. {listing?.priceInr}</strong></div>
-                <div><span className="info-label">Exam focus</span><strong>{listing?.studyMetadata?.examFocus || "-"}</strong></div>
-                <div><span className="info-label">Question type</span><strong>{listing?.studyMetadata?.questionType || "-"}</strong></div>
-                <div><span className="info-label">Difficulty</span><strong>{listing?.studyMetadata?.difficultyLevel || "-"}</strong></div>
-                <div><span className="info-label">Audience</span><strong>{listing?.studyMetadata?.intendedAudience || "-"}</strong></div>
-              </div>
-              <div className="marketplace-taxonomy">
-                {universityLink ? <Link to={universityLink.href}>{universityLink.label}</Link> : null}
-                {branchLink ? <Link to={branchLink.href}>{branchLink.label}</Link> : null}
-                {semesterLink ? <Link to={semesterLink.href}>{semesterLink.label}</Link> : null}
-                {subjectLink ? <Link to={subjectLink.href}>{subjectLink.label}</Link> : null}
-              </div>
-              <p className="support-copy">
-                Sold by {listing?.sellerName || "ExamNova Seller"} ({listing?.sellerSourceLabel || "Seller"}) - {listing?.viewCount || 0} views - {isAuthenticated ? "Permanent buyer-library access after purchase." : "Secure guest download after successful payment verification."}
-              </p>
-            </article>
-            <article className="detail-card">
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">Why this PDF</p>
-                  <h2>What a first-time buyer should know</h2>
-                </div>
-              </div>
-              <p className="support-copy">{listing?.description}</p>
-              <div className="marketplace-taxonomy">
-                {listing?.studyMetadata?.examFocus ? <span>{listing.studyMetadata.examFocus}</span> : null}
-                {listing?.studyMetadata?.questionType ? <span>{listing.studyMetadata.questionType}</span> : null}
-                {listing?.studyMetadata?.difficultyLevel ? <span>{listing.studyMetadata.difficultyLevel}</span> : null}
-                {listing?.studyMetadata?.intendedAudience ? <span>{listing.studyMetadata.intendedAudience}</span> : null}
-                {(listing?.tags || []).map((tag) => <span key={tag}>{tag}</span>)}
-                {!(listing?.tags || []).length && !listing?.studyMetadata?.examFocus ? <span>Focused revision</span> : null}
-              </div>
-              <p className="support-copy">
-                Purchase takes you through a secure payment step, then the PDF is unlocked either in your account library or through a verified guest download token.
-              </p>
-              <div className="hero-actions">
-                <Link className="button ghost" to={examPreparationLink?.href || "/marketplace"}>
-                  Explore exam preparation
-                </Link>
-                <Link className="button ghost" to={importantQuestionsLink?.href || "/marketplace"}>
-                  Important questions
-                </Link>
-              </div>
-            </article>
-          </section>
-          <section className="three-column-grid">
-            <InternalLinkGrid
-              links={universityLink ? [universityLink] : []}
-              title="University preparation"
-            />
-            <InternalLinkGrid
-              links={branchLink ? [branchLink] : []}
-              title="Branch preparation"
-            />
-            <InternalLinkGrid
-              links={semesterLink ? [semesterLink] : []}
-              title="Semester preparation"
-            />
-            <InternalLinkGrid
-              links={subjectLink ? [subjectLink] : []}
-              title="Subject discovery"
-            />
-            <InternalLinkGrid
-              links={examPreparationLink ? [examPreparationLink] : []}
-              title="Exam preparation"
-            />
-            <InternalLinkGrid
-              links={importantQuestionsLink ? [importantQuestionsLink] : []}
-              title="Important questions"
-            />
-          </section>
-          <section className="stack-section">
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Related PDFs</p>
-                <h2>More from this subject</h2>
-              </div>
+              </article>
             </div>
-            {state.relatedListings.length ? (
-              <div className="marketplace-grid">
-                {state.relatedListings.map((item) => (
-                  <MarketplaceListingCard key={item.id} listing={item} />
-                ))}
-              </div>
-            ) : (
-              <EmptyStateCard
-                title="No related PDFs yet"
-                description="As more PDFs are published for this subject, related marketplace recommendations will appear here."
-              />
-            )}
-          </section>
-        </>
+          </article>
+        </section>
       )}
     </>
   );

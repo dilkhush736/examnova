@@ -80,8 +80,8 @@ export function MarketplaceListingCard({ listing, sellerView = false, action = n
       </div>
       <div className="hero-actions card-actions">
         <Link className="button secondary full-width" to={`/pdf/${listing.slug}`}>
-          <i className="bi bi-arrow-up-right" />
-          Review PDF
+          <i className="bi bi-download" />
+          Download PDF
         </Link>
         {action}
       </div>
