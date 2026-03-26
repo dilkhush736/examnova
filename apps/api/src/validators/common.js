@@ -120,6 +120,24 @@ export function ensureInteger(value, field, { min = 0, max = Number.MAX_SAFE_INT
   return numericValue;
 }
 
+export function ensureOptionalDateTime(value, field) {
+  const normalized = normalizeString(value, {
+    maxLength: 80,
+    collapseWhitespace: false,
+  });
+
+  if (!normalized) {
+    return "";
+  }
+
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    throw new ApiError(422, `${field} must be a valid date and time.`);
+  }
+
+  return date.toISOString();
+}
+
 export function createValidator(requiredFields = []) {
   return function validator(req, _res, next) {
     try {

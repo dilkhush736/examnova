@@ -44,6 +44,8 @@ export const MARKETPLACE_SPLIT = {
   SELLER_PERCENT: 70,
 };
 
+export const MARKETPLACE_COVER_SEALS = ["new", "premium", "popular", "updated"];
+
 export const PAYMENT_STATUS = {
   PENDING: "pending",
   PAID: "paid",

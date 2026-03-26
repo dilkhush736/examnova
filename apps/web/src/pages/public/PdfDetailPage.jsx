@@ -15,6 +15,12 @@ import {
   verifyPublicMarketplacePayment,
 } from "../../services/api/index.js";
 import { loadRazorpayCheckout } from "../../utils/loadRazorpayCheckout.js";
+import {
+  formatMarketplaceDate,
+  getCountdownParts,
+  getCoverSealLabel,
+  isListingReleaseLocked,
+} from "../../utils/marketplaceAvailability.js";
 import { buildBreadcrumbSchema, buildProductSchema, buildSeoPayload } from "../../utils/seo.js";
 
 const DEFAULT_FEEDBACK = {
@@ -103,6 +109,7 @@ export function PdfDetailPage() {
   const [guestFullName, setGuestFullName] = useState("");
   const [guestAccess, setGuestAccess] = useState(null);
   const [accountPurchaseId, setAccountPurchaseId] = useState("");
+  const [countdownNow, setCountdownNow] = useState(Date.now());
   const autoPurchaseAttemptedRef = useRef(false);
 
   useEffect(() => {
@@ -174,6 +181,7 @@ export function PdfDetailPage() {
       !isAuthenticated ||
       !accessToken ||
       !listing?.id ||
+      isListingReleaseLocked(listing) ||
       isLoading ||
       autoPurchaseAttemptedRef.current
     ) {
@@ -186,6 +194,18 @@ export function PdfDetailPage() {
     setSearchParams(nextParams, { replace: true });
     handlePurchase();
   }, [accessToken, isAuthenticated, isLoading, listing?.id, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!listing?.releaseAt) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCountdownNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [listing?.releaseAt]);
 
   async function handleGuestDownload(access = guestAccess, { silent = false } = {}) {
     if (!access?.purchaseId || !access?.token) {
@@ -443,6 +463,17 @@ export function PdfDetailPage() {
       return;
     }
 
+    if (isListingReleaseLocked(listing)) {
+      setFeedback({
+        type: "error",
+        message: `This PDF will unlock on ${formatMarketplaceDate(listing.releaseAt)}.`,
+        detail: "The countdown above is live. Download stays disabled until the scheduled release time arrives.",
+        showGuestDownload: false,
+        showAccountDownload: false,
+      });
+      return;
+    }
+
     setFeedback(DEFAULT_FEEDBACK);
     setIsPurchasing(true);
 
@@ -466,6 +497,10 @@ export function PdfDetailPage() {
   }
 
   function handlePrimaryAction() {
+    if (isListingReleaseLocked(listing)) {
+      return;
+    }
+
     if (feedback.showGuestDownload && guestAccess) {
       handleGuestDownload();
       return;
@@ -480,6 +515,11 @@ export function PdfDetailPage() {
   }
 
   function getPrimaryButtonLabel() {
+    const countdown = getCountdownParts(listing?.releaseAt, countdownNow);
+    if (isListingReleaseLocked(listing) && countdown) {
+      return `Download locked - ${countdown.shortLabel}`;
+    }
+
     if (feedback.showGuestDownload && guestAccess) {
       return isGuestDownloading ? "Preparing download..." : "Download PDF";
     }
@@ -524,6 +564,9 @@ export function PdfDetailPage() {
   const previewBuyerName = normalizeGuestName(guestFullName) || "Your full name";
   const sourceLabel = listing?.sellerSourceLabel || "Marketplace Seller";
   const sourceTone = listing?.sourceType === "admin_upload" ? "warning" : "neutral";
+  const coverSealLabel = getCoverSealLabel(listing?.coverSeal);
+  const releaseLocked = isListingReleaseLocked(listing, countdownNow);
+  const releaseCountdown = getCountdownParts(listing?.releaseAt, countdownNow);
   const academicSummary = [
     listing?.taxonomy?.university,
     listing?.taxonomy?.branch,
@@ -560,6 +603,8 @@ export function PdfDetailPage() {
               <div className="simple-card-chip-row">
                 <StatusBadge tone={sourceTone}>{sourceLabel}</StatusBadge>
                 <StatusBadge tone="success">Rs. {listing?.priceInr || 0}</StatusBadge>
+                {coverSealLabel ? <StatusBadge tone="neutral">{coverSealLabel}</StatusBadge> : null}
+                {releaseLocked ? <StatusBadge tone="warning">Upcoming</StatusBadge> : null}
               </div>
               <div className="marketplace-taxonomy simple-card-tags">
                 {detailTags.map((tag) => (
@@ -573,7 +618,9 @@ export function PdfDetailPage() {
                 <div className="simple-pdf-placeholder-sheet">
                   <div className="simple-pdf-placeholder-head">
                     <span className="simple-preview-chip">PDF placeholder</span>
-                    <span className="simple-preview-price">Rs. {listing?.priceInr || 0}</span>
+                    <span className="simple-preview-price">
+                      {releaseLocked ? formatMarketplaceDate(listing?.releaseAt) : `Rs. ${listing?.priceInr || 0}`}
+                    </span>
                   </div>
                   <strong className="simple-placeholder-title">{listing?.title}</strong>
                   <p className="support-copy">{academicSummary || "Structured academic PDF"}</p>
@@ -592,6 +639,17 @@ export function PdfDetailPage() {
                 <p className="support-copy">
                   This page only keeps the selected PDF details and a simple download flow. No extra sections, no extra distractions.
                 </p>
+
+                {releaseLocked ? (
+                  <div className="simple-release-lock-card">
+                    <span className="info-label">Scheduled release</span>
+                    <strong>{formatMarketplaceDate(listing?.releaseAt)}</strong>
+                    <p className="support-copy">
+                      Download stays locked until the exact go-live time.
+                    </p>
+                    {releaseCountdown ? <strong className="simple-release-countdown">{releaseCountdown.shortLabel}</strong> : null}
+                  </div>
+                ) : null}
 
                 <label className="field">
                   <span>Full name</span>
@@ -623,6 +681,10 @@ export function PdfDetailPage() {
                     <span className="info-label">Seller</span>
                     <strong>{listing?.sellerName || "ExamNova Seller"}</strong>
                   </div>
+                  <div>
+                    <span className="info-label">Release</span>
+                    <strong>{formatMarketplaceDate(listing?.releaseAt || listing?.publishedAt || listing?.createdAt) || "-"}</strong>
+                  </div>
                 </div>
 
                 {feedback.message ? (
@@ -634,11 +696,11 @@ export function PdfDetailPage() {
 
                 <button
                   className="button primary full-width"
-                  disabled={isPurchasing || isGuestDownloading || isAccountDownloading}
+                  disabled={releaseLocked || isPurchasing || isGuestDownloading || isAccountDownloading}
                   onClick={handlePrimaryAction}
                   type="button"
                 >
-                  <i className="bi bi-download" />
+                  <i className={`bi ${releaseLocked ? "bi-lock" : "bi-download"}`} />
                   {getPrimaryButtonLabel()}
                 </button>
 

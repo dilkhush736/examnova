@@ -31,7 +31,7 @@ export function MarketplacePage() {
   const semesterOptions = withAllOption(SEMESTER_OPTIONS, "All semesters");
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [result, setResult] = useState({ items: [], pagination: null });
+  const [result, setResult] = useState({ items: [], upcomingItems: [], pagination: null });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -76,7 +76,9 @@ export function MarketplacePage() {
     setFilters(DEFAULT_FILTERS);
   }
 
-  const totalListings = result.pagination?.total || result.items.length;
+  const totalLiveListings = result.pagination?.total || result.items.length;
+  const upcomingCount = result.upcomingItems?.length || 0;
+  const totalListings = totalLiveListings + upcomingCount;
   const hasActiveFilters = Object.entries(filters).some(([key, value]) =>
     key === "sort" ? value !== DEFAULT_FILTERS.sort : Boolean(value),
   );
@@ -116,7 +118,7 @@ export function MarketplacePage() {
             <SectionHeader
               eyebrow="Browse PDFs"
               title={`${isLoading ? "Loading..." : totalListings} PDF${totalListings === 1 ? "" : "s"} ready to review`}
-              description="Use filters only if you need them. Otherwise, scroll the cards below and open the PDF you want."
+              description="Use filters only if you need them. Live PDFs are ready to download now, and upcoming PDFs show their release countdown on the same page."
             />
             {hasActiveFilters ? (
               <button className="button ghost" onClick={handleResetFilters} type="button">
@@ -199,15 +201,39 @@ export function MarketplacePage() {
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        {isLoading ? (
-          <LoadingCard message="Loading PDFs..." />
-        ) : result.items.length ? (
-          <div className="marketplace-grid simple-marketplace-grid">
-            {result.items.map((listing) => (
-              <MarketplaceListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        ) : (
+        {isLoading ? <LoadingCard message="Loading PDFs..." /> : null}
+
+        {!isLoading && result.items.length ? (
+          <section className="stack-section">
+            <SectionHeader
+              eyebrow="Available now"
+              title={`${totalLiveListings} ready to download`}
+              description="Click any Download PDF button to open that one PDF on a clean single-detail page."
+            />
+            <div className="marketplace-grid simple-marketplace-grid">
+              {result.items.map((listing) => (
+                <MarketplaceListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {!isLoading && result.upcomingItems?.length ? (
+          <section className="stack-section">
+            <SectionHeader
+              eyebrow="Upcoming PDFs"
+              title={`${upcomingCount} scheduled release${upcomingCount === 1 ? "" : "s"}`}
+              description="These cards stay visible with a live countdown, but download remains locked until the release date and time arrives."
+            />
+            <div className="marketplace-grid simple-marketplace-grid">
+              {result.upcomingItems.map((listing) => (
+                <MarketplaceListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {!isLoading && !result.items.length && !result.upcomingItems?.length ? (
           <EmptyStateCard
             title="No PDFs match these filters yet"
             description={
@@ -224,7 +250,7 @@ export function MarketplacePage() {
               ) : null
             }
           />
-        )}
+        ) : null}
       </section>
     </>
   );

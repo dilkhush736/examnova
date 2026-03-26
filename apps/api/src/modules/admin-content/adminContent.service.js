@@ -8,6 +8,12 @@ import { createStorageClient } from "../../lib/index.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { slugify } from "../../utils/slugify.js";
 import { normalizeAcademicTaxonomy, normalizeStudyMetadata } from "../../utils/academicTaxonomy.js";
+import {
+  getListingDisplayDate,
+  isReleaseLocked,
+  normalizeCoverSeal,
+  normalizeReleaseAt,
+} from "../../utils/marketplaceAvailability.js";
 
 const storageClient = createStorageClient();
 const ADMIN_UPLOAD_VISIBILITY = new Set(["draft", "published", "unlisted", "archived"]);
@@ -141,6 +147,10 @@ function serializeAdminUpload(record) {
     seoDescription: record.seoDescription || "",
     visibility: record.visibility,
     isFeatured: Boolean(record.isFeatured),
+    releaseAt: record.releaseAt || null,
+    coverSeal: record.coverSeal || "",
+    cardDate: getListingDisplayDate(record),
+    isUpcoming: isReleaseLocked(record),
     publishedAt: record.publishedAt || null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -160,6 +170,7 @@ function serializeUpcoming(record) {
     taxonomy: record.taxonomy,
     tags: record.tags || [],
     coverImageUrl: record.coverImageUrl || "",
+    coverSeal: record.coverSeal || "",
     isFeatured: Boolean(record.isFeatured),
     visibility: Boolean(record.visibility),
     visibilityStartAt: record.visibilityStartAt || null,
@@ -195,6 +206,8 @@ async function syncListingFromAdminUpload(record) {
     studyMetadata: record.studyMetadata || {},
     coverImageUrl: record.coverImageUrl || "",
     tags: record.tags || [],
+    coverSeal: record.coverSeal || "",
+    releaseAt: record.releaseAt || null,
     seoTitle: record.seoTitle || record.title,
     seoDescription: record.seoDescription || (record.description || "").slice(0, 150),
     searchText: buildSearchText({
@@ -272,10 +285,12 @@ export const adminContentService = {
       studyMetadata: payload.studyMetadata || normalizeStudyMetadata(payload),
       tags: normalizeTags(payload.tags),
       coverImageUrl: normalizeText(payload.coverImageUrl),
+      coverSeal: normalizeCoverSeal(payload.coverSeal),
       seoTitle: normalizeText(payload.seoTitle),
       seoDescription: normalizeText(payload.seoDescription),
       visibility,
       isFeatured: normalizeBoolean(payload.isFeatured),
+      releaseAt: normalizeReleaseAt(payload.releaseAt),
       publishedAt: visibility === "published" ? new Date() : null,
     });
 
@@ -324,10 +339,12 @@ export const adminContentService = {
     record.studyMetadata = payload.studyMetadata || normalizeStudyMetadata(payload);
     record.tags = Array.isArray(payload.tags) ? payload.tags : normalizeTags(payload.tags);
     record.coverImageUrl = normalizeText(payload.coverImageUrl);
+    record.coverSeal = normalizeCoverSeal(payload.coverSeal);
     record.seoTitle = normalizeText(payload.seoTitle);
     record.seoDescription = normalizeText(payload.seoDescription);
     record.visibility = ensureVisibility(payload.visibility || record.visibility);
     record.isFeatured = normalizeBoolean(payload.isFeatured);
+    record.releaseAt = normalizeReleaseAt(payload.releaseAt);
     record.publishedAt = record.visibility === "published" ? record.publishedAt || new Date() : null;
     await record.save();
 

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { COLLECTION_NAMES } from "../constants/db.constants.js";
+import { MARKETPLACE_COVER_SEALS } from "../constants/app.constants.js";
 import {
   requiredAcademicTaxonomySchema,
   studyMetadataSchema,
@@ -30,6 +31,8 @@ const marketplaceListingSchema = new mongoose.Schema(
     searchText: { type: String, default: "", index: true },
     viewCount: { type: Number, default: 0 },
     salesCount: { type: Number, default: 0 },
+    releaseAt: { type: Date, default: null, index: true },
+    coverSeal: { type: String, enum: ["", ...MARKETPLACE_COVER_SEALS], default: "", index: true },
     publishedAt: { type: Date },
     isFeatured: { type: Boolean, default: false, index: true },
   },
@@ -61,6 +64,7 @@ marketplaceListingSchema.index(
   },
 );
 marketplaceListingSchema.index({ isPublished: 1, publishedAt: -1 });
+marketplaceListingSchema.index({ isPublished: 1, releaseAt: 1 });
 marketplaceListingSchema.index({ priceInr: 1, publishedAt: -1 });
 
 export const MarketplaceListing =

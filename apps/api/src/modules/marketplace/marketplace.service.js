@@ -6,6 +6,12 @@ import {
   normalizeControlledFilterValue,
   normalizeStudyMetadata,
 } from "../../utils/academicTaxonomy.js";
+import {
+  getListingDisplayDate,
+  isReleaseLocked,
+  normalizeCoverSeal,
+  normalizeReleaseAt,
+} from "../../utils/marketplaceAvailability.js";
 
 const MIN_PRICE = 4;
 const MAX_PRICE = 10;
@@ -117,6 +123,11 @@ function serializeListing(record) {
     viewCount: record.viewCount || 0,
     salesCount: record.salesCount || 0,
     isFeatured: Boolean(record.isFeatured),
+    releaseAt: record.releaseAt || null,
+    coverSeal: record.coverSeal || "",
+    cardDate: getListingDisplayDate(record),
+    isUpcoming: isReleaseLocked(record),
+    isDownloadLocked: isReleaseLocked(record),
     publishedAt: record.publishedAt || null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -183,6 +194,7 @@ export const marketplaceService = {
     const description = normalizeText(payload.description);
     const tags = normalizeTags(payload.tags);
     const studyMetadata = payload.studyMetadata || normalizeStudyMetadata(payload || {});
+    const releaseAt = normalizeReleaseAt(payload.releaseAt);
     const slug = await buildUniqueSlug(`${title}-${taxonomy.subject}-${taxonomy.semester}`);
 
     const listing = await MarketplaceListing.create({
@@ -201,6 +213,8 @@ export const marketplaceService = {
       taxonomy,
       studyMetadata,
       tags,
+      coverSeal: normalizeCoverSeal(payload.coverSeal),
+      releaseAt,
       seoTitle: normalizeText(payload.seoTitle) || title,
       seoDescription: normalizeText(payload.seoDescription) || description.slice(0, 150),
       searchText: buildSearchText({ title, description, taxonomy, studyMetadata, tags }),
@@ -230,6 +244,7 @@ export const marketplaceService = {
     const description = normalizeText(payload.description);
     const tags = normalizeTags(payload.tags);
     const studyMetadata = payload.studyMetadata || normalizeStudyMetadata(payload || {}) || listing.studyMetadata || {};
+    const releaseAt = normalizeReleaseAt(payload.releaseAt);
 
     listing.title = title;
     listing.description = description;
@@ -239,6 +254,8 @@ export const marketplaceService = {
     listing.taxonomy = taxonomy;
     listing.studyMetadata = studyMetadata;
     listing.tags = tags;
+    listing.coverSeal = normalizeCoverSeal(payload.coverSeal);
+    listing.releaseAt = releaseAt;
     listing.seoTitle = normalizeText(payload.seoTitle) || title;
     listing.seoDescription = normalizeText(payload.seoDescription) || description.slice(0, 150);
     listing.searchText = buildSearchText({ title, description, taxonomy, tags, studyMetadata });
@@ -260,6 +277,7 @@ export const marketplaceService = {
   async getPublicListings(filters) {
     const page = Math.max(Number(filters.page) || 1, 1);
     const limit = Math.min(Math.max(Number(filters.limit) || 12, 1), 24);
+    const now = new Date();
     const query = {
       isPublished: true,
       approvalStatus: "approved",
@@ -293,17 +311,31 @@ export const marketplaceService = {
             ? { isFeatured: -1, viewCount: -1, publishedAt: -1 }
             : { isFeatured: -1, publishedAt: -1 };
 
-    const [items, total] = await Promise.all([
-      MarketplaceListing.find(query)
+    const availableQuery = {
+      ...query,
+      $or: [{ releaseAt: null }, { releaseAt: { $lte: now } }],
+    };
+    const upcomingQuery = {
+      ...query,
+      releaseAt: { $gt: now },
+    };
+
+    const [items, total, upcomingItems] = await Promise.all([
+      MarketplaceListing.find(availableQuery)
         .populate("sellerId", "name role sellerProfile")
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit),
-      MarketplaceListing.countDocuments(query),
+      MarketplaceListing.countDocuments(availableQuery),
+      MarketplaceListing.find(upcomingQuery)
+        .populate("sellerId", "name role sellerProfile")
+        .sort({ releaseAt: 1, isFeatured: -1, publishedAt: -1 })
+        .limit(10),
     ]);
 
     return {
       items: items.map(serializeListing),
+      upcomingItems: upcomingItems.map(serializeListing),
       pagination: {
         page,
         limit,

@@ -1,7 +1,11 @@
-import { MARKETPLACE_PRICE_RANGE } from "../../features/marketplace/marketplace.constants.js";
+import {
+  MARKETPLACE_COVER_SEAL_OPTIONS,
+  MARKETPLACE_PRICE_RANGE,
+} from "../../features/marketplace/marketplace.constants.js";
 import {
   DEFAULT_UNIVERSITY,
 } from "../../features/academic/academicTaxonomy.js";
+import { toDateTimeLocalValue } from "../../utils/marketplaceAvailability.js";
 import { AcademicTaxonomyFieldset } from "./AcademicTaxonomyFieldset.jsx";
 import { StudyMetadataFieldset } from "./StudyMetadataFieldset.jsx";
 
@@ -22,6 +26,8 @@ function createBlankMarketplaceForm() {
     intendedAudience: "",
     tags: "",
     visibility: "draft",
+    releaseAt: "",
+    coverSeal: "",
   };
 }
 
@@ -46,6 +52,8 @@ export function createInitialMarketplaceForm(listing = null) {
     intendedAudience: listing.studyMetadata?.intendedAudience || "",
     tags: (listing.tags || []).join(", "),
     visibility: listing.visibility || "draft",
+    releaseAt: toDateTimeLocalValue(listing.releaseAt),
+    coverSeal: listing.coverSeal || "",
   };
 }
 
@@ -80,12 +88,13 @@ export function MarketplaceListingForm({
           <p className="support-copy">
             {isEditing
               ? "You can update buyer-facing details and academic classification here, but the original generated PDF source stays locked."
-              : "Pick a finalized generated PDF and ExamNova will prefill the academic taxonomy from its source document so your public listing stays clean and searchable."}
+              : "Pick a finalized generated PDF and ExamNova will prefill the academic taxonomy from its source document so your public listing stays clean, searchable, and easy to schedule."}
           </p>
         </div>
         <div className="guided-pill-row">
           <span className="guided-pill">Controlled categories</span>
           <span className="guided-pill">Public-safe metadata</span>
+          <span className="guided-pill">Scheduled release</span>
         </div>
       </article>
 
@@ -172,6 +181,25 @@ export function MarketplaceListingForm({
             <option value="unlisted">Unlisted</option>
           </select>
         </label>
+        <label className="field">
+          <span>Go live date & time</span>
+          <input
+            className="input"
+            onChange={(event) => onChange("releaseAt", event.target.value)}
+            type="datetime-local"
+            value={form.releaseAt}
+          />
+        </label>
+        <label className="field">
+          <span>Cover seal</span>
+          <select className="input" onChange={(event) => onChange("coverSeal", event.target.value)} value={form.coverSeal}>
+            {MARKETPLACE_COVER_SEAL_OPTIONS.map((option) => (
+              <option key={option.value || "no-seal"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <label className="field">
@@ -201,6 +229,9 @@ export function MarketplaceListingForm({
           </label>
           <p className="support-copy">
             Use short comma-separated tags only when they genuinely help search clarity. Avoid repeating branch, semester, or university because those are already controlled above.
+          </p>
+          <p className="support-copy">
+            If you set a future go-live date, students will see this PDF as upcoming with a live countdown, but download stays locked until that exact date and time.
           </p>
         </div>
       </details>

@@ -7,13 +7,21 @@ import { StudyMetadataFieldset } from "../../components/ui/StudyMetadataFieldset
 import {
   DEFAULT_UNIVERSITY,
 } from "../../features/academic/academicTaxonomy.js";
-import { MARKETPLACE_PRICE_RANGE } from "../../features/marketplace/marketplace.constants.js";
+import {
+  MARKETPLACE_COVER_SEAL_OPTIONS,
+  MARKETPLACE_PRICE_RANGE,
+} from "../../features/marketplace/marketplace.constants.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import {
   createAdminUpload,
   fetchAdminUploads,
   updateAdminUpload,
 } from "../../services/api/index.js";
+import {
+  formatMarketplaceDate,
+  getCoverSealLabel,
+  toDateTimeLocalValue,
+} from "../../utils/marketplaceAvailability.js";
 
 function createBlankAdminUploadForm() {
   return {
@@ -35,6 +43,8 @@ function createBlankAdminUploadForm() {
     seoDescription: "",
     visibility: "draft",
     isFeatured: false,
+    releaseAt: "",
+    coverSeal: "",
   };
 }
 
@@ -62,7 +72,17 @@ function createAdminUploadForm(item = null) {
     seoDescription: item.seoDescription || "",
     visibility: item.visibility || "draft",
     isFeatured: Boolean(item.isFeatured),
+    releaseAt: toDateTimeLocalValue(item.releaseAt),
+    coverSeal: item.coverSeal || "",
   };
+}
+
+function appendAdminUploadFormData(target, source) {
+  Object.entries(source).forEach(([key, value]) => {
+    const normalizedValue =
+      key === "releaseAt" ? (value ? new Date(value).toISOString() : "") : value;
+    target.append(key, typeof normalizedValue === "boolean" ? String(normalizedValue) : normalizedValue);
+  });
 }
 
 export function AdminUploadsPage() {
@@ -134,9 +154,7 @@ export function AdminUploadsPage() {
     try {
       if (editingId) {
         const payload = new FormData();
-        Object.entries(form).forEach(([key, value]) => {
-          payload.append(key, typeof value === "boolean" ? String(value) : value);
-        });
+        appendAdminUploadFormData(payload, form);
         if (selectedFile) {
           payload.append("pdf", selectedFile);
         }
@@ -151,9 +169,7 @@ export function AdminUploadsPage() {
         });
       } else {
         const formData = new FormData();
-        Object.entries(form).forEach(([key, value]) => {
-          formData.append(key, typeof value === "boolean" ? String(value) : value);
-        });
+        appendAdminUploadFormData(formData, form);
         if (selectedFile) {
           formData.append("pdf", selectedFile);
         }
@@ -203,6 +219,7 @@ export function AdminUploadsPage() {
               <span className="guided-pill">Admin owned</span>
               <span className="guided-pill">Marketplace synced</span>
               <span className="guided-pill">Controlled taxonomy</span>
+              <span className="guided-pill">Timed release</span>
             </div>
           </article>
           <label className="field">
@@ -231,6 +248,20 @@ export function AdminUploadsPage() {
                 <option value="published">Published</option>
                 <option value="unlisted">Unlisted</option>
                 <option value="archived">Archived</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Go live date & time</span>
+              <input className="input" onChange={(event) => handleChange("releaseAt", event.target.value)} type="datetime-local" value={form.releaseAt} />
+            </label>
+            <label className="field">
+              <span>Cover seal</span>
+              <select className="input" onChange={(event) => handleChange("coverSeal", event.target.value)} value={form.coverSeal}>
+                {MARKETPLACE_COVER_SEAL_OPTIONS.map((option) => (
+                  <option key={option.value || "no-seal"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -284,8 +315,14 @@ export function AdminUploadsPage() {
                   <StatusBadge tone={item.visibility === "published" ? "success" : "warning"}>
                     {item.visibility}
                   </StatusBadge>
+                  {item.coverSeal ? <StatusBadge tone="neutral">{getCoverSealLabel(item.coverSeal)}</StatusBadge> : null}
                   {item.isFeatured ? <StatusBadge tone="success">Featured</StatusBadge> : null}
                 </div>
+                <span className="support-copy">
+                  {item.releaseAt
+                    ? `Go live: ${formatMarketplaceDate(item.releaseAt)}`
+                    : `Available now since ${formatMarketplaceDate(item.publishedAt || item.createdAt)}`}
+                </span>
                 <div className="hero-actions">
                   <button className="button secondary" onClick={() => startEditing(item)} type="button">
                     Edit metadata

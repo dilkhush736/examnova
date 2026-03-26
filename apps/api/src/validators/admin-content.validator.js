@@ -1,5 +1,7 @@
 import { ApiError } from "../utils/ApiError.js";
+import { MARKETPLACE_COVER_SEALS } from "../constants/app.constants.js";
 import {
+  ensureOptionalDateTime,
   ensureNumericAmount,
   ensureObjectId,
   ensureRequiredString,
@@ -18,6 +20,20 @@ function validatePrice(priceInr) {
 
 function looksLikePdf(buffer) {
   return buffer?.subarray?.(0, 4)?.toString?.("utf8") === "%PDF";
+}
+
+function normalizeCoverSeal(value) {
+  const coverSeal = normalizeOptionalString(value, { maxLength: 20 }).toLowerCase();
+
+  if (!coverSeal) {
+    return "";
+  }
+
+  if (!MARKETPLACE_COVER_SEALS.includes(coverSeal)) {
+    throw new ApiError(422, `coverSeal must be one of: ${MARKETPLACE_COVER_SEALS.join(", ")}.`);
+  }
+
+  return coverSeal;
 }
 
 function buildSanitizedPayload(body) {
@@ -39,6 +55,8 @@ function buildSanitizedPayload(body) {
     seoTitle: normalizeOptionalString(body?.seoTitle, { maxLength: 160 }),
     seoDescription: normalizeOptionalString(body?.seoDescription, { maxLength: 260 }),
     isFeatured: normalizeBoolean(body?.isFeatured, false),
+    releaseAt: ensureOptionalDateTime(body?.releaseAt, "releaseAt"),
+    coverSeal: normalizeCoverSeal(body?.coverSeal),
     taxonomy: validateTaxonomy(body),
   };
 }

@@ -1,5 +1,7 @@
 import { ApiError } from "../utils/ApiError.js";
+import { MARKETPLACE_COVER_SEALS } from "../constants/app.constants.js";
 import {
+  ensureOptionalDateTime,
   ensureNumericAmount,
   ensureObjectId,
   ensureRequiredString,
@@ -19,6 +21,17 @@ function normalizeVisibility(value, fallback = "draft") {
   return visibility;
 }
 
+function normalizeCoverSeal(value) {
+  const coverSeal = normalizeOptionalString(value, { maxLength: 20 }).toLowerCase();
+  if (!coverSeal) {
+    return "";
+  }
+  if (!MARKETPLACE_COVER_SEALS.includes(coverSeal)) {
+    throw new ApiError(422, `coverSeal must be one of: ${MARKETPLACE_COVER_SEALS.join(", ")}.`);
+  }
+  return coverSeal;
+}
+
 function buildSanitizedListingPayload(body, { requireGeneratedPdfId }) {
   const studyMetadata = normalizeStudyMetadata(body || {});
 
@@ -33,6 +46,8 @@ function buildSanitizedListingPayload(body, { requireGeneratedPdfId }) {
     seoTitle: normalizeOptionalString(body?.seoTitle, { maxLength: 160 }),
     seoDescription: normalizeOptionalString(body?.seoDescription, { maxLength: 260 }),
     tags: studyMetadata.tags,
+    releaseAt: ensureOptionalDateTime(body?.releaseAt, "releaseAt"),
+    coverSeal: normalizeCoverSeal(body?.coverSeal),
     studyMetadata: {
       examFocus: studyMetadata.examFocus,
       questionType: studyMetadata.questionType,

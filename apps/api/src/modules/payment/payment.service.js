@@ -24,6 +24,7 @@ import { notificationService } from "../../services/notification.service.js";
 import { pdfGenerationService } from "../pdf/pdfGeneration.service.js";
 import { purchaseService } from "../purchase/purchase.service.js";
 import { getModeAccessSnapshot, isDeveloperUnlocked } from "../../utils/userMode.js";
+import { ensureReleasedOrThrow } from "../../utils/marketplaceAvailability.js";
 
 const PRIVATE_PDF_PRICE = 4;
 const GUEST_PURCHASE_ACCESS_TTL_MS = 1000 * 60 * 60 * 24;
@@ -248,6 +249,8 @@ async function findPurchasableListing(listingId) {
   if (!storageKey) {
     throw new ApiError(400, "Marketplace listing does not have a valid PDF file.");
   }
+
+  ensureReleasedOrThrow(listing);
 
   return listing;
 }

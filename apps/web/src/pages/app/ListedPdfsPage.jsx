@@ -126,6 +126,8 @@ export function ListedPdfsPage() {
       intendedAudience: form.intendedAudience,
       visibility: form.visibility,
       tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      releaseAt: form.releaseAt ? new Date(form.releaseAt).toISOString() : "",
+      coverSeal: form.coverSeal,
     };
 
     try {

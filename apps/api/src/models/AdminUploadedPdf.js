@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { COLLECTION_NAMES } from "../constants/db.constants.js";
+import { MARKETPLACE_COVER_SEALS } from "../constants/app.constants.js";
 import {
   requiredAcademicTaxonomySchema,
   studyMetadataSchema,
@@ -26,6 +27,8 @@ const adminUploadedPdfSchema = new mongoose.Schema(
     seoDescription: { type: String, default: "" },
     visibility: { type: String, default: "draft", index: true },
     isFeatured: { type: Boolean, default: false, index: true },
+    releaseAt: { type: Date, default: null, index: true },
+    coverSeal: { type: String, enum: ["", ...MARKETPLACE_COVER_SEALS], default: "", index: true },
     publishedAt: { type: Date, default: null },
   },
   {
