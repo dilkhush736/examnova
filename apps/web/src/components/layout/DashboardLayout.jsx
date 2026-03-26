@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
+import { ThemeToggleButton } from "../ui/ThemeToggleButton.jsx";
 import {
   hasDeveloperAccess,
   MODE_LABELS,
@@ -117,6 +118,7 @@ export function DashboardLayout() {
             </div>
           </div>
           <div className="topbar-chip-group">
+            <ThemeToggleButton compact className="topbar-theme-toggle" />
             <span className="status-chip"><i className="bi bi-patch-check-fill" />{user?.isEmailVerified ? "Email verified" : "Verification pending"}</span>
             <span className="status-chip"><i className="bi bi-stars" />{MODE_LABELS[modeAccess.currentMode]}</span>
             <span className="status-chip muted"><i className="bi bi-person-fill" />{user?.role || "student"}</span>

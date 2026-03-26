@@ -1,8 +1,16 @@
-import { Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
+import { ThemeToggleButton } from "../ui/ThemeToggleButton.jsx";
 
 export function AuthLayout() {
   return (
     <div className="auth-shell">
+      <div className="auth-utility-bar">
+        <Link className="auth-home-link" to="/marketplace">
+          <i className="bi bi-arrow-left-short" />
+          Back to marketplace
+        </Link>
+        <ThemeToggleButton compact />
+      </div>
       <section className="auth-panel">
         <div className="auth-showcase">
           <div className="auth-copy-panel">

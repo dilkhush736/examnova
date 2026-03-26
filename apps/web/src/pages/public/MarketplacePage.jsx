@@ -186,13 +186,13 @@ export function MarketplacePage() {
     <>
       <SeoHead {...seoPayload} />
       <PageHero
-        eyebrow="Marketplace-first entry"
-        title="Start with ready-made study PDFs, not a confusing dashboard."
-        description="ExamNova AI now starts in the marketplace so first-time students can browse public PDFs immediately, then move into Professional or Developer Mode only when they actually need account features."
+        eyebrow="Premium study marketplace"
+        title="Find exam-ready PDFs in a clean, trusted marketplace."
+        description="Browse official ExamNova uploads and student-sold PDFs through a clearer grid, stronger academic filters, and secure checkout that still works for first-time visitors without forcing signup first."
         metrics={[
-          { label: "Published listings", value: isLoading ? "Loading..." : `${totalListings} ready` },
-          { label: "Official uploads", value: visibleOfficialCount },
-          { label: "Student uploads", value: visibleStudentCount },
+          { label: "Catalog", value: isLoading ? "Loading..." : `${totalListings} listings` },
+          { label: "Official", value: visibleOfficialCount },
+          { label: "Student sellers", value: visibleStudentCount },
         ]}
         actions={
           <>
@@ -212,72 +212,12 @@ export function MarketplacePage() {
         }
       />
 
-      <section className="stack-section">
-        <SectionHeader
-          eyebrow="Mode clarity"
-          title="Simple, Professional, and Developer paths"
-          description="The marketplace stays public in Simple Mode. Account-only tools unlock progressively so zero-knowledge users can understand the product from the first screen."
-        />
-        <div className="mode-grid">
-          {MODE_CATALOG.map((mode) => {
-            const isCurrent = mode.id === modeAccess.currentMode;
-            const isDeveloper = mode.id === PLATFORM_MODES.DEVELOPER;
-
-            return (
-              <article
-                className={`detail-card mode-card ${isCurrent ? "current" : ""} ${isDeveloper ? "developer" : ""}`}
-                key={mode.id}
-              >
-                <div className="mode-card-header">
-                  <div>
-                    <p className="eyebrow">{mode.badge}</p>
-                    <h3>{mode.label}</h3>
-                  </div>
-                  {isCurrent ? <span className="status-chip"><i className="bi bi-stars" />Current</span> : null}
-                </div>
-                <p className="support-copy">{mode.description}</p>
-                <div className="mode-feature-list">
-                  {mode.features.map((feature) => (
-                    <span className="mode-feature-item" key={feature}>
-                      <i className="bi bi-check2-circle" />
-                      {feature}
-                    </span>
-                  ))}
-                </div>
-                <div className="hero-actions">
-                  {mode.id === PLATFORM_MODES.SIMPLE ? (
-                    <Link className="button ghost" to="/marketplace">
-                      <i className="bi bi-shop" />
-                      Browse public PDFs
-                    </Link>
-                  ) : mode.id === PLATFORM_MODES.PROFESSIONAL ? (
-                    <Link className="button primary" to={isAuthenticated ? "/app/upload-generate" : "/signup"}>
-                      <i className={`bi ${isAuthenticated ? "bi-cloud-arrow-up" : "bi-person-plus-fill"}`} />
-                      {isAuthenticated ? "Use AI workflow" : "Login for Professional"}
-                    </Link>
-                  ) : (
-                    <Link className="button primary" to={isAuthenticated ? "/app/settings#mode-access" : "/signup"}>
-                      <i className={`bi ${isAuthenticated ? "bi-lightning-charge-fill" : "bi-person-plus-fill"}`} />
-                      {isAuthenticated
-                        ? modeAccess.developerUnlocked
-                          ? "Switch or manage Developer"
-                          : `Unlock Developer for Rs. ${modeAccess.developerUnlockAmountInr}`
-                        : "Create account to unlock"}
-                    </Link>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
       <section className="marketplace-entry-grid">
         <article className="detail-card marketplace-onboarding-card">
-          <p className="eyebrow">Start here</p>
-          <h2>What a new user should do first</h2>
+          <p className="eyebrow">Quick start</p>
+          <h2>What a first-time student should do</h2>
           <p className="support-copy">
-            Pick your branch and semester, scan the source badge on each card, then open any listing to review the PDF and purchase access.
+            Pick your branch and semester, scan the source badge, then open any card to review the PDF and purchase access with confidence.
           </p>
           <div className="marketplace-step-list">
             <div className="marketplace-step-item">
@@ -291,7 +231,7 @@ export function MarketplacePage() {
               <span className="marketplace-step-number">2</span>
               <div>
                 <strong>Check the source before opening</strong>
-                <p className="support-copy">Cards clearly show whether a PDF was uploaded by ExamNova Admin or listed by a student seller.</p>
+                <p className="support-copy">Every premium product card clearly shows whether the PDF is an ExamNova upload or a student listing.</p>
               </div>
             </div>
             <div className="marketplace-step-item">
@@ -305,10 +245,10 @@ export function MarketplacePage() {
         </article>
 
         <article className="detail-card marketplace-source-card official">
-          <p className="eyebrow">Official uploads</p>
+          <p className="eyebrow">Official shelf</p>
           <h2>ExamNova Admin PDFs</h2>
           <p className="support-copy">
-            Curated PDFs uploaded by the ExamNova team so students can quickly spot official material on the marketplace.
+            Curated PDFs uploaded by the ExamNova team so students can quickly spot trusted official material in the grid.
           </p>
           <div className="marketplace-source-footer">
             <StatusBadge tone="warning">{visibleOfficialCount}</StatusBadge>
@@ -317,8 +257,8 @@ export function MarketplacePage() {
         </article>
 
         <article className="detail-card marketplace-source-card community">
-          <p className="eyebrow">Student uploads</p>
-          <h2>Community-shared PDFs</h2>
+          <p className="eyebrow">Community shelf</p>
+          <h2>Student seller PDFs</h2>
           <p className="support-copy">
             Published by student sellers who want to share useful exam-ready notes, generated PDFs, and alternate study material.
           </p>
@@ -328,24 +268,6 @@ export function MarketplacePage() {
           </div>
         </article>
       </section>
-
-      {discoveryIndex ? (
-        <section className="stack-section">
-          <SectionHeader
-            eyebrow="Browse faster"
-            title="Start with your university, branch, semester, or subject"
-            description="If you are not sure where to click first, these discovery links take you straight into structured academic browsing."
-          />
-          <div className="three-column-grid">
-          <InternalLinkGrid links={discoveryIndex.universities || []} title="Universities" />
-          <InternalLinkGrid links={discoveryIndex.branches || []} title="Branches" />
-          <InternalLinkGrid links={discoveryIndex.semesters || []} title="Semesters" />
-          <InternalLinkGrid links={discoveryIndex.subjects || []} title="Subjects" />
-          <InternalLinkGrid links={discoveryIndex.examPreparation || []} title="Exam Preparation" />
-          <InternalLinkGrid links={discoveryIndex.importantQuestions || []} title="Important Questions" />
-          </div>
-        </section>
-      ) : null}
 
       <section className="two-column-grid marketplace-shell">
         <form className="detail-card marketplace-filters">
@@ -519,6 +441,84 @@ export function MarketplacePage() {
           )}
         </section>
       </section>
+
+      <section className="stack-section">
+        <SectionHeader
+          eyebrow="Upgrade paths"
+          title="Simple, Professional, and Developer modes"
+          description="The marketplace stays public first. Account-only tools unlock progressively after browsing so the product remains understandable on the first visit."
+        />
+        <div className="mode-grid">
+          {MODE_CATALOG.map((mode) => {
+            const isCurrent = mode.id === modeAccess.currentMode;
+            const isDeveloper = mode.id === PLATFORM_MODES.DEVELOPER;
+
+            return (
+              <article
+                className={`detail-card mode-card ${isCurrent ? "current" : ""} ${isDeveloper ? "developer" : ""}`}
+                key={mode.id}
+              >
+                <div className="mode-card-header">
+                  <div>
+                    <p className="eyebrow">{mode.badge}</p>
+                    <h3>{mode.label}</h3>
+                  </div>
+                  {isCurrent ? <span className="status-chip"><i className="bi bi-stars" />Current</span> : null}
+                </div>
+                <p className="support-copy">{mode.description}</p>
+                <div className="mode-feature-list">
+                  {mode.features.map((feature) => (
+                    <span className="mode-feature-item" key={feature}>
+                      <i className="bi bi-check2-circle" />
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+                <div className="hero-actions">
+                  {mode.id === PLATFORM_MODES.SIMPLE ? (
+                    <Link className="button ghost" to="/marketplace">
+                      <i className="bi bi-shop" />
+                      Browse public PDFs
+                    </Link>
+                  ) : mode.id === PLATFORM_MODES.PROFESSIONAL ? (
+                    <Link className="button primary" to={isAuthenticated ? "/app/upload-generate" : "/signup"}>
+                      <i className={`bi ${isAuthenticated ? "bi-cloud-arrow-up" : "bi-person-plus-fill"}`} />
+                      {isAuthenticated ? "Use AI workflow" : "Login for Professional"}
+                    </Link>
+                  ) : (
+                    <Link className="button primary" to={isAuthenticated ? "/app/settings#mode-access" : "/signup"}>
+                      <i className={`bi ${isAuthenticated ? "bi-lightning-charge-fill" : "bi-person-plus-fill"}`} />
+                      {isAuthenticated
+                        ? modeAccess.developerUnlocked
+                          ? "Switch or manage Developer"
+                          : `Unlock Developer for Rs. ${modeAccess.developerUnlockAmountInr}`
+                        : "Create account to unlock"}
+                    </Link>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {discoveryIndex ? (
+        <section className="stack-section">
+          <SectionHeader
+            eyebrow="Browse faster"
+            title="Start with your university, branch, semester, or subject"
+            description="If you still want structured discovery after scanning the main catalog, these internal routes take you into deeper academic browsing."
+          />
+          <div className="three-column-grid">
+            <InternalLinkGrid links={discoveryIndex.universities || []} title="Universities" />
+            <InternalLinkGrid links={discoveryIndex.branches || []} title="Branches" />
+            <InternalLinkGrid links={discoveryIndex.semesters || []} title="Semesters" />
+            <InternalLinkGrid links={discoveryIndex.subjects || []} title="Subjects" />
+            <InternalLinkGrid links={discoveryIndex.examPreparation || []} title="Exam Preparation" />
+            <InternalLinkGrid links={discoveryIndex.importantQuestions || []} title="Important Questions" />
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

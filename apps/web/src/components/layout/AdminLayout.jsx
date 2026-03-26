@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
+import { ThemeToggleButton } from "../ui/ThemeToggleButton.jsx";
 
 const adminNavSections = [
   {
@@ -97,6 +98,7 @@ export function AdminLayout() {
             </div>
           </div>
           <div className="topbar-chip-group">
+            <ThemeToggleButton compact className="topbar-theme-toggle" />
             <span className="status-chip"><i className="bi bi-activity" />Ops live</span>
             <span className="status-chip muted"><i className="bi bi-shield-lock-fill" />Admin</span>
           </div>

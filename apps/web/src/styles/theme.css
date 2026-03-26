@@ -1,19 +1,87 @@
-:root {
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
   font-family: "Manrope", "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   --font-display: "Space Grotesk", "Aptos Display", sans-serif;
+  --color-brand: #4c82ff;
+  --color-text-strong: #edf5ff;
   --bg: #040b17;
   --bg-deep: #071325;
   --bg-elevated: #0b1b34;
-  --bg-panel: rgba(9, 18, 36, 0.78);
-  --bg-panel-strong: rgba(11, 21, 42, 0.9);
-  --bg-panel-soft: rgba(16, 29, 56, 0.76);
+  --bg-panel: rgba(9, 18, 36, 0.82);
+  --bg-panel-strong: rgba(11, 21, 42, 0.92);
+  --bg-panel-soft: rgba(16, 29, 56, 0.78);
+  --page-gradient:
+    radial-gradient(circle at 12% 14%, rgba(79, 108, 255, 0.24), transparent 23%),
+    radial-gradient(circle at 82% 16%, rgba(111, 232, 255, 0.22), transparent 20%),
+    radial-gradient(circle at 50% 76%, rgba(66, 242, 213, 0.12), transparent 28%),
+    linear-gradient(160deg, #030915 0%, #06101f 32%, #07162d 58%, #050c18 100%);
+  --page-grid-line: rgba(255, 255, 255, 0.05);
+  --page-grid-opacity: 0.44;
+  --page-glow-layer:
+    radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 80% 10%, rgba(76, 130, 255, 0.18), transparent 22%),
+    radial-gradient(circle at 50% 82%, rgba(66, 242, 213, 0.1), transparent 24%);
   --surface: linear-gradient(180deg, rgba(15, 28, 52, 0.92), rgba(9, 17, 34, 0.84));
   --surface-strong: linear-gradient(180deg, rgba(17, 33, 64, 0.94), rgba(10, 19, 38, 0.92));
   --surface-soft: linear-gradient(180deg, rgba(14, 26, 50, 0.78), rgba(8, 15, 29, 0.72));
-  --surface-highlight: linear-gradient(135deg, rgba(36, 83, 170, 0.42), rgba(34, 221, 201, 0.14) 42%, rgba(15, 23, 42, 0) 76%);
+  --surface-hero:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.14), transparent 22%),
+    radial-gradient(circle at bottom left, rgba(76, 130, 255, 0.18), transparent 20%),
+    linear-gradient(145deg, rgba(15, 28, 52, 0.96), rgba(8, 16, 31, 0.92));
+  --surface-auth:
+    radial-gradient(circle at 15% 15%, rgba(111, 232, 255, 0.16), transparent 22%),
+    radial-gradient(circle at 86% 16%, rgba(76, 130, 255, 0.18), transparent 20%),
+    linear-gradient(160deg, rgba(17, 33, 64, 0.96), rgba(8, 16, 32, 0.9));
+  --surface-card-accent:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(18, 33, 60, 0.95), rgba(10, 20, 39, 0.92));
+  --surface-stat:
+    linear-gradient(180deg, rgba(18, 34, 64, 0.96), rgba(8, 15, 30, 0.9));
+  --surface-empty:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.12), transparent 20%),
+    linear-gradient(160deg, rgba(15, 28, 52, 0.95), rgba(8, 16, 31, 0.9));
+  --surface-marketplace-callout:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.1), transparent 22%),
+    linear-gradient(180deg, rgba(17, 33, 64, 0.94), rgba(9, 17, 34, 0.9));
+  --surface-marketplace-official:
+    radial-gradient(circle at top right, rgba(255, 202, 114, 0.18), transparent 22%),
+    linear-gradient(180deg, rgba(25, 36, 58, 0.96), rgba(11, 18, 34, 0.9));
+  --surface-marketplace-community:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.14), transparent 22%),
+    linear-gradient(180deg, rgba(16, 32, 58, 0.96), rgba(9, 17, 34, 0.9));
+  --surface-checkout:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(16, 31, 58, 0.98), rgba(9, 17, 34, 0.9));
+  --surface-checkout-note:
+    radial-gradient(circle at top right, rgba(255, 202, 114, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(22, 35, 59, 0.95), rgba(10, 18, 34, 0.9));
+  --surface-shortcut:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.14), transparent 22%),
+    linear-gradient(160deg, rgba(17, 33, 64, 0.98), rgba(8, 16, 31, 0.9));
+  --surface-dropzone:
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(18, 33, 60, 0.94), rgba(10, 20, 39, 0.92));
+  --surface-preview: rgba(8, 15, 29, 0.9);
+  --surface-subtle: rgba(255, 255, 255, 0.03);
+  --surface-subtle-strong: rgba(255, 255, 255, 0.05);
+  --surface-neutral-chip: rgba(255, 255, 255, 0.06);
+  --surface-badge: rgba(111, 232, 255, 0.08);
+  --surface-badge-strong: rgba(111, 232, 255, 0.12);
+  --surface-input: linear-gradient(180deg, rgba(18, 33, 60, 0.94), rgba(10, 20, 39, 0.92));
+  --surface-input-focus: linear-gradient(180deg, rgba(20, 38, 70, 0.98), rgba(10, 20, 39, 0.96));
+  --surface-field-autofill: rgba(9, 18, 36, 0.92);
+  --surface-brand-mark:
+    linear-gradient(135deg, rgba(111, 232, 255, 0.22), rgba(76, 130, 255, 0.32)),
+    rgba(15, 28, 52, 0.92);
+  --surface-hero-orbit:
+    linear-gradient(135deg, rgba(111, 232, 255, 0.22), rgba(76, 130, 255, 0.36)),
+    rgba(14, 27, 52, 0.98);
+  --surface-theme-toggle:
+    linear-gradient(135deg, rgba(111, 232, 255, 0.12), rgba(76, 130, 255, 0.08)),
+    rgba(255, 255, 255, 0.03);
   --ink: #edf5ff;
   --ink-soft: #cddbf5;
   --muted: #91a6cb;
@@ -33,6 +101,13 @@
   --warning-soft: rgba(255, 202, 114, 0.18);
   --danger: #ff7c8b;
   --danger-soft: rgba(255, 124, 139, 0.16);
+  --button-primary-text: #041020;
+  --button-secondary-bg: linear-gradient(135deg, rgba(111, 232, 255, 0.12), rgba(76, 130, 255, 0.1));
+  --button-secondary-border: rgba(111, 232, 255, 0.22);
+  --button-secondary-text: #ffffff;
+  --button-ghost-bg: rgba(255, 255, 255, 0.04);
+  --button-ghost-border: rgba(255, 255, 255, 0.1);
+  --button-ghost-text: #cddbf5;
   --shadow-sm: 0 14px 30px rgba(0, 0, 0, 0.24);
   --shadow-md: 0 24px 60px rgba(0, 0, 0, 0.32);
   --shadow-lg: 0 36px 120px rgba(0, 0, 0, 0.42);
@@ -40,8 +115,123 @@
   --radius-sm: 20px;
   --radius-md: 28px;
   --radius-lg: 36px;
-  --content-width: min(1380px, calc(100% - 40px));
-  --content-width-tight: min(1220px, calc(100% - 40px));
+  --content-width: min(1420px, calc(100% - 40px));
+  --content-width-tight: min(1280px, calc(100% - 40px));
+  --selection-bg: rgba(111, 232, 255, 0.3);
+  --selection-ink: #ffffff;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-brand: #205ce4;
+  --color-text-strong: #102548;
+  --bg: #f3f7ff;
+  --bg-deep: #dde8fb;
+  --bg-elevated: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.78);
+  --bg-panel-strong: rgba(255, 255, 255, 0.92);
+  --bg-panel-soft: rgba(245, 249, 255, 0.86);
+  --page-gradient:
+    radial-gradient(circle at 10% 12%, rgba(61, 111, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 84% 10%, rgba(35, 182, 201, 0.14), transparent 19%),
+    radial-gradient(circle at 55% 82%, rgba(255, 182, 110, 0.14), transparent 26%),
+    linear-gradient(180deg, #f8fbff 0%, #f2f7ff 34%, #eaf2ff 72%, #f6f8fd 100%);
+  --page-grid-line: rgba(37, 73, 140, 0.07);
+  --page-grid-opacity: 0.6;
+  --page-glow-layer:
+    radial-gradient(circle at 16% 16%, rgba(88, 132, 255, 0.14), transparent 18%),
+    radial-gradient(circle at 78% 12%, rgba(71, 211, 224, 0.12), transparent 18%),
+    radial-gradient(circle at 50% 82%, rgba(255, 183, 114, 0.14), transparent 22%);
+  --surface: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 249, 255, 0.94));
+  --surface-strong: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.96));
+  --surface-soft: linear-gradient(180deg, rgba(248, 251, 255, 0.92), rgba(239, 245, 255, 0.9));
+  --surface-hero:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.12), transparent 22%),
+    radial-gradient(circle at bottom left, rgba(255, 183, 114, 0.16), transparent 22%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.96));
+  --surface-auth:
+    radial-gradient(circle at 15% 15%, rgba(83, 129, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 84% 16%, rgba(35, 182, 201, 0.12), transparent 20%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(242, 247, 255, 0.96));
+  --surface-card-accent:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 255, 0.96));
+  --surface-stat:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.08), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.96));
+  --surface-empty:
+    radial-gradient(circle at top right, rgba(35, 182, 201, 0.08), transparent 20%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.95));
+  --surface-marketplace-callout:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 247, 255, 0.96));
+  --surface-marketplace-official:
+    radial-gradient(circle at top right, rgba(255, 183, 114, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 240, 0.96));
+  --surface-marketplace-community:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 246, 255, 0.96));
+  --surface-checkout:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.96));
+  --surface-checkout-note:
+    radial-gradient(circle at top right, rgba(255, 183, 114, 0.14), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 248, 240, 0.96));
+  --surface-shortcut:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.1), transparent 20%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.95));
+  --surface-dropzone:
+    radial-gradient(circle at top right, rgba(83, 129, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 255, 0.96));
+  --surface-preview: rgba(246, 249, 255, 0.98);
+  --surface-subtle: rgba(33, 76, 160, 0.04);
+  --surface-subtle-strong: rgba(33, 76, 160, 0.06);
+  --surface-neutral-chip: rgba(18, 37, 74, 0.06);
+  --surface-badge: rgba(32, 92, 228, 0.08);
+  --surface-badge-strong: rgba(32, 92, 228, 0.12);
+  --surface-input: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.96));
+  --surface-input-focus: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(241, 246, 255, 0.98));
+  --surface-field-autofill: rgba(255, 255, 255, 0.98);
+  --surface-brand-mark:
+    linear-gradient(135deg, rgba(32, 92, 228, 0.14), rgba(62, 190, 218, 0.18)),
+    rgba(255, 255, 255, 0.98);
+  --surface-hero-orbit:
+    linear-gradient(135deg, rgba(32, 92, 228, 0.14), rgba(62, 190, 218, 0.18)),
+    rgba(255, 255, 255, 0.98);
+  --surface-theme-toggle:
+    linear-gradient(135deg, rgba(32, 92, 228, 0.08), rgba(62, 190, 218, 0.08)),
+    rgba(255, 255, 255, 0.92);
+  --ink: #102548;
+  --ink-soft: #27426d;
+  --muted: #617a9f;
+  --muted-strong: #456189;
+  --border: rgba(30, 66, 130, 0.14);
+  --border-strong: rgba(32, 92, 228, 0.26);
+  --border-soft: rgba(30, 66, 130, 0.1);
+  --accent: #2f7cf4;
+  --accent-deep: #205ce4;
+  --accent-soft: rgba(32, 92, 228, 0.1);
+  --accent-glow: rgba(32, 92, 228, 0.16);
+  --accent-warm: #f1983a;
+  --accent-teal: #18b4c7;
+  --success: #178d62;
+  --success-soft: rgba(23, 141, 98, 0.12);
+  --warning: #cf7c1b;
+  --warning-soft: rgba(207, 124, 27, 0.12);
+  --danger: #c64f67;
+  --danger-soft: rgba(198, 79, 103, 0.12);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(241, 247, 255, 0.92));
+  --button-secondary-border: rgba(32, 92, 228, 0.14);
+  --button-secondary-text: #17345f;
+  --button-ghost-bg: rgba(255, 255, 255, 0.78);
+  --button-ghost-border: rgba(30, 66, 130, 0.1);
+  --button-ghost-text: #27426d;
+  --shadow-sm: 0 14px 30px rgba(36, 62, 114, 0.08);
+  --shadow-md: 0 24px 60px rgba(36, 62, 114, 0.12);
+  --shadow-lg: 0 36px 120px rgba(36, 62, 114, 0.16);
+  --selection-bg: rgba(32, 92, 228, 0.18);
+  --selection-ink: #102548;
 }
 
 *,
@@ -63,11 +253,10 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 12% 14%, rgba(79, 108, 255, 0.24), transparent 23%),
-    radial-gradient(circle at 82% 16%, rgba(111, 232, 255, 0.22), transparent 20%),
-    radial-gradient(circle at 50% 76%, rgba(66, 242, 213, 0.12), transparent 28%),
-    linear-gradient(160deg, #030915 0%, #06101f 32%, #07162d 58%, #050c18 100%);
+  background: var(--page-gradient);
+  transition:
+    background 220ms ease,
+    color 220ms ease;
 }
 
 body::before,
@@ -81,26 +270,23 @@ body::after {
 
 body::before {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    linear-gradient(var(--page-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px);
   background-size: 78px 78px;
   mask-image: radial-gradient(circle at center, black 22%, transparent 88%);
-  opacity: 0.44;
+  opacity: var(--page-grid-opacity);
 }
 
 body::after {
   inset: -10%;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(111, 232, 255, 0.12), transparent 18%),
-    radial-gradient(circle at 80% 10%, rgba(76, 130, 255, 0.18), transparent 22%),
-    radial-gradient(circle at 50% 82%, rgba(66, 242, 213, 0.1), transparent 24%);
+  background: var(--page-glow-layer);
   filter: blur(18px);
   animation: atmospheric-drift 20s ease-in-out infinite alternate;
 }
 
 ::selection {
-  background: rgba(111, 232, 255, 0.3);
-  color: #fff;
+  background: var(--selection-bg);
+  color: var(--selection-ink);
 }
 
 a {
@@ -159,13 +345,17 @@ p {
   outline-offset: 3px;
 }
 
+:root[data-theme="light"] :focus-visible {
+  outline-color: rgba(32, 92, 228, 0.54);
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 textarea:-webkit-autofill,
 select:-webkit-autofill {
   -webkit-text-fill-color: var(--ink);
-  -webkit-box-shadow: 0 0 0 1000px rgba(9, 18, 36, 0.92) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-field-autofill) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -175,17 +365,29 @@ select:-webkit-autofill {
 }
 
 ::-webkit-scrollbar-track {
+  background: rgba(5, 11, 23, 0.12);
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
   background: rgba(5, 11, 23, 0.86);
 }
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  border: 2px solid rgba(5, 11, 23, 0.86);
+  border: 2px solid rgba(255, 255, 255, 0.32);
   background: linear-gradient(180deg, rgba(111, 232, 255, 0.58), rgba(76, 130, 255, 0.5));
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  border-color: rgba(5, 11, 23, 0.86);
 }
 
 ::placeholder {
   color: rgba(171, 190, 220, 0.62);
+}
+
+:root[data-theme="light"] ::placeholder {
+  color: rgba(76, 103, 145, 0.62);
 }
 
 .full-width {
@@ -223,6 +425,11 @@ select:-webkit-autofill {
   box-shadow: 0 0 20px rgba(111, 232, 255, 0.5);
 }
 
+:root[data-theme="light"] .eyebrow::before {
+  background: linear-gradient(90deg, rgba(32, 92, 228, 0), rgba(32, 92, 228, 0.82));
+  box-shadow: 0 0 16px rgba(32, 92, 228, 0.22);
+}
+
 .form-error,
 .form-success {
   margin: 0;
@@ -238,10 +445,18 @@ select:-webkit-autofill {
   color: #ffd7dc;
 }
 
+:root[data-theme="light"] .form-error {
+  color: #8b243c;
+}
+
 .form-success {
   background: linear-gradient(180deg, rgba(82, 224, 163, 0.18), rgba(82, 224, 163, 0.1));
   border-color: rgba(82, 224, 163, 0.24);
   color: #d7ffea;
+}
+
+:root[data-theme="light"] .form-success {
+  color: #0b6847;
 }
 
 .text-link-row {
@@ -261,7 +476,7 @@ select:-webkit-autofill {
 
 .text-link-row a:hover,
 .inline-actions a:hover {
-  color: #fff;
+  color: var(--ink);
 }
 
 .inline-actions {
