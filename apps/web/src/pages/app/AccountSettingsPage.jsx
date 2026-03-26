@@ -40,6 +40,9 @@ export function AccountSettingsPage() {
   }, [user]);
 
   const modeAccess = normalizeModeAccess(user);
+  const developerUnlockedAtLabel = modeAccess.developerUnlockedAt
+    ? new Date(modeAccess.developerUnlockedAt).toLocaleString()
+    : "";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -99,6 +102,13 @@ export function AccountSettingsPage() {
       ]);
 
       if (orderResponse.data?.alreadyUnlocked) {
+        if (modeAccess.currentMode === PLATFORM_MODES.DEVELOPER) {
+          setFeedback({
+            type: "success",
+            message: "Developer Mode is already unlocked and active for this account.",
+          });
+          return;
+        }
         await handleModeSwitch(PLATFORM_MODES.DEVELOPER);
         return;
       }
@@ -182,6 +192,38 @@ export function AccountSettingsPage() {
           title="Choose the right ExamNova path"
           description="Simple Mode stays public. Logged-in accounts start in Professional Mode, and Developer Mode adds public selling after a one-time Rs. 10 unlock."
         />
+        <article className="detail-card mode-status-summary">
+          <div className="mode-card-header">
+            <div>
+              <p className="eyebrow">Developer unlock status</p>
+              <h3>{modeAccess.developerUnlocked ? "Payment verified" : "Locked until payment"}</h3>
+            </div>
+            <span className={`status-chip ${modeAccess.developerUnlocked ? "" : "muted"}`}>
+              <i className={`bi ${modeAccess.developerUnlocked ? "bi-shield-check" : "bi-lock-fill"}`} />
+              {modeAccess.developerUnlocked
+                ? "Developer access ready"
+                : `Rs. ${modeAccess.developerUnlockAmountInr} required`}
+            </span>
+          </div>
+          <div className="info-grid">
+            <div>
+              <span className="info-label">Current mode</span>
+              <strong>{MODE_LABELS[modeAccess.currentMode]}</strong>
+            </div>
+            <div>
+              <span className="info-label">Unlock status</span>
+              <strong>{modeAccess.developerUnlocked ? "Unlocked" : "Not unlocked yet"}</strong>
+            </div>
+            <div>
+              <span className="info-label">Unlocked on</span>
+              <strong>{developerUnlockedAtLabel || "Payment not completed yet"}</strong>
+            </div>
+            <div>
+              <span className="info-label">Verification record</span>
+              <strong>{modeAccess.developerUnlockPaymentId ? "Stored in backend profile" : "Will be stored after payment"}</strong>
+            </div>
+          </div>
+        </article>
         <div className="mode-grid">
           {MODE_CATALOG.map((mode) => {
             const isCurrent = mode.id === modeAccess.currentMode;

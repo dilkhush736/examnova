@@ -87,6 +87,7 @@ export function normalizeModeAccess(user) {
     availableModes,
     developerUnlocked,
     developerUnlockedAt: storedModeAccess.developerUnlockedAt || null,
+    developerUnlockPaymentId: storedModeAccess.developerUnlockPaymentId || null,
     developerUnlockAmountInr:
       Number(storedModeAccess.developerUnlockAmountInr) || DEVELOPER_UNLOCK_PRICE,
     capabilities: {

@@ -1051,6 +1051,11 @@
   gap: 1rem;
 }
 
+.mode-status-summary {
+  display: grid;
+  gap: 1rem;
+}
+
 @media (max-width: 900px) {
   .hero-card,
   .two-column-grid,
