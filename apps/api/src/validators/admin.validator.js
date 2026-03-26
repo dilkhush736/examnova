@@ -1,5 +1,6 @@
 import { ApiError } from "../utils/ApiError.js";
-import { normalizeOptionalString } from "./common.js";
+import { MARKETPLACE_COVER_SEALS } from "../constants/app.constants.js";
+import { ensureNumericAmount, ensureOptionalDateTime, normalizeOptionalString } from "./common.js";
 
 export function validateAdminUserAction(req, _res, next) {
   try {
@@ -29,6 +30,32 @@ export function validateAdminListingAction(req, _res, next) {
       action,
       reason: normalizeOptionalString(req.body?.reason, { maxLength: 240 }),
     };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function validateAdminListingUpdate(req, _res, next) {
+  try {
+    const title = normalizeOptionalString(req.body?.title, { maxLength: 140 });
+    const coverSeal = normalizeOptionalString(req.body?.coverSeal, { maxLength: 20 }).toLowerCase();
+
+    if (coverSeal && !MARKETPLACE_COVER_SEALS.includes(coverSeal)) {
+      throw new ApiError(422, `coverSeal must be one of: ${MARKETPLACE_COVER_SEALS.join(", ")}.`);
+    }
+
+    req.body = {
+      title,
+      priceInr: ensureNumericAmount(req.body?.priceInr, "priceInr", { min: 4, max: 10 }),
+      releaseAt: ensureOptionalDateTime(req.body?.releaseAt, "releaseAt"),
+      coverSeal,
+    };
+
+    if (!req.body.title) {
+      throw new ApiError(422, "title is required.");
+    }
+
     return next();
   } catch (error) {
     return next(error);

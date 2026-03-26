@@ -251,7 +251,7 @@ async function createAuditLog(action, actor, req, targetType, targetId, after) {
 
 export const adminContentService = {
   async listAdminUploads() {
-    const items = await AdminUploadedPdf.find()
+    const items = await AdminUploadedPdf.find({ isDeleted: { $ne: true } })
       .populate("adminId", "name")
       .sort({ createdAt: -1 });
 
@@ -364,36 +364,23 @@ export const adminContentService = {
       throw new ApiError(404, "Admin-uploaded PDF not found.");
     }
 
-    const completedPurchases = await Purchase.countDocuments({
-      adminUploadId: record._id,
-      status: "completed",
-      buyerAccessState: "granted",
-    });
-
-    if (completedPurchases > 0) {
-      throw new ApiError(
-        409,
-        "This PDF already has buyer downloads. Replace or unlist it instead of deleting the file.",
-      );
-    }
-
-    try {
-      if (record.storageKey) {
-        await storageClient.remove(record.storageKey);
-      }
-    } catch {
-      // Continue cleanup even if the old file is already missing.
-    }
-
     if (record.listingId) {
-      await MarketplaceListing.findByIdAndDelete(record.listingId);
+      await MarketplaceListing.findByIdAndUpdate(record.listingId, {
+        visibility: "archived",
+        isPublished: false,
+        moderationStatus: "restricted",
+      });
     }
 
-    await UpcomingLockedPdf.deleteMany({
-      $or: [{ adminUploadId: record._id }, { listingId: record.listingId || null }],
-    });
+    await UpcomingLockedPdf.updateMany(
+      { $or: [{ adminUploadId: record._id }, { listingId: record.listingId || null }] },
+      { visibility: false, status: "archived" },
+    );
 
-    await AdminUploadedPdf.findByIdAndDelete(record._id);
+    record.isDeleted = true;
+    record.deletedAt = new Date();
+    record.visibility = "archived";
+    await record.save();
 
     await createAuditLog("admin_upload_deleted", actor, req, "AdminUploadedPdf", record._id.toString(), {
       title: record.title,

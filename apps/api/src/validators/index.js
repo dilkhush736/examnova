@@ -23,6 +23,7 @@ export {
 } from "./payment.validator.js";
 export {
   validateAdminListingAction,
+  validateAdminListingUpdate,
   validateAdminUserAction,
   validateAdminWithdrawalAction,
 } from "./admin.validator.js";

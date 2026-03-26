@@ -68,6 +68,21 @@ export function fetchAdminListings(accessToken) {
   });
 }
 
+export function updateAdminListing(accessToken, listingId, payload) {
+  return apiRequest(`/admin/listings/${listingId}`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAdminListing(accessToken, listingId) {
+  return apiRequest(`/admin/listings/${listingId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function fetchAdminUploads(accessToken) {
   return apiRequest("/admin-content/uploads", {
     headers: authHeaders(accessToken),

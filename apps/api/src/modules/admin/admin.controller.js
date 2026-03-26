@@ -47,6 +47,14 @@ export const adminController = {
     const listing = await adminService.updateListingStatus(req.params.id, req.body, req.user, req);
     return sendSuccess(res, { listing }, "Admin listing status updated successfully.");
   },
+  async updateListingMetadata(req, res) {
+    const listing = await adminService.updateListingMetadata(req.params.id, req.body, req.user, req);
+    return sendSuccess(res, { listing }, "Admin listing metadata updated successfully.");
+  },
+  async deleteListing(req, res) {
+    const item = await adminService.deleteListing(req.params.id, req.user, req);
+    return sendSuccess(res, { item }, "Admin listing deleted successfully.");
+  },
   async listPurchases(_req, res) {
     const items = await adminService.listPurchases();
     return sendSuccess(res, { items }, "Admin purchases fetched successfully.");

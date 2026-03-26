@@ -67,6 +67,7 @@ export { cancelWithdrawal, createWithdrawal, fetchWithdrawals } from "./withdraw
 export {
   createAdminUpcoming,
   createAdminUpload,
+  deleteAdminListing,
   deleteAdminUpload,
   fetchAdminAlerts,
   fetchAdminAnalyticsOverview,
@@ -86,6 +87,7 @@ export {
   updateAdminUpcomingStatus,
   updateAdminUpload,
   updateAdminListingStatus,
+  updateAdminListing,
   updateAdminUserStatus,
   updateAdminWithdrawalStatus,
 } from "./admin.js";

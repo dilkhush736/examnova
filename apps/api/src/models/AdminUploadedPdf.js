@@ -29,6 +29,8 @@ const adminUploadedPdfSchema = new mongoose.Schema(
     isFeatured: { type: Boolean, default: false, index: true },
     releaseAt: { type: Date, default: null, index: true },
     coverSeal: { type: String, enum: ["", ...MARKETPLACE_COVER_SEALS], default: "", index: true },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
     publishedAt: { type: Date, default: null },
   },
   {

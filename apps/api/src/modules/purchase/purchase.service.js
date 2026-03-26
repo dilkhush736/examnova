@@ -1,5 +1,5 @@
 import { createStorageClient, hashToken } from "../../lib/index.js";
-import { MarketplaceListing, Purchase } from "../../models/index.js";
+import { AdminUploadedPdf, GeneratedPdf, MarketplaceListing, Purchase } from "../../models/index.js";
 import { ApiError } from "../../utils/ApiError.js";
 
 const storageClient = createStorageClient();
@@ -34,6 +34,32 @@ async function findDownloadableListing(listingId) {
   return MarketplaceListing.findById(listingId)
     .populate("sourcePdfId")
     .populate("adminUploadId");
+}
+
+async function buildDirectSourceDownloadFile(purchase) {
+  if (purchase?.adminUploadId) {
+    const adminUpload = await AdminUploadedPdf.findById(purchase.adminUploadId);
+    if (adminUpload?.storageKey) {
+      const absolutePath = await storageClient.resolveExisting(adminUpload.storageKey);
+      return {
+        absolutePath,
+        downloadName: adminUpload.originalName || "purchased-admin-pdf.pdf",
+      };
+    }
+  }
+
+  if (purchase?.generatedPdfId) {
+    const generatedPdf = await GeneratedPdf.findById(purchase.generatedPdfId);
+    if (generatedPdf?.storageKey) {
+      const absolutePath = await storageClient.resolveExisting(generatedPdf.storageKey);
+      return {
+        absolutePath,
+        downloadName: generatedPdf.pdfDownloadName || `${generatedPdf.title || "purchased-pdf"}.pdf`,
+      };
+    }
+  }
+
+  throw new ApiError(404, "Purchased PDF file is not available.");
 }
 
 async function buildPurchaseDownloadFile(listing) {
@@ -114,7 +140,12 @@ export const purchaseService = {
     }
 
     const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);
-    return buildPurchaseDownloadFile(listing);
+
+    if (listing) {
+      return buildPurchaseDownloadFile(listing);
+    }
+
+    return buildDirectSourceDownloadFile(purchase);
   },
 
   async getGuestPurchaseDownload(purchaseId, guestToken) {
@@ -147,6 +178,11 @@ export const purchaseService = {
     }
 
     const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);
-    return buildPurchaseDownloadFile(listing);
+
+    if (listing) {
+      return buildPurchaseDownloadFile(listing);
+    }
+
+    return buildDirectSourceDownloadFile(purchase);
   },
 };

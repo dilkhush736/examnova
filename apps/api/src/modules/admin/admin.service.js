@@ -11,9 +11,14 @@ import {
   WithdrawalRequest,
 } from "../../models/index.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { MARKETPLACE_COVER_SEALS } from "../../constants/app.constants.js";
 import { walletService } from "../wallet/wallet.service.js";
 import { notificationService } from "../../services/notification.service.js";
 import { getModeAccessSnapshot } from "../../utils/userMode.js";
+import {
+  normalizeCoverSeal,
+  normalizeReleaseAt,
+} from "../../utils/marketplaceAvailability.js";
 
 function toSearchRegex(value) {
   return new RegExp(String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -48,12 +53,16 @@ function serializeListing(listing) {
     sellerName: listing.sellerId?.sellerProfile?.displayName || listing.sellerId?.name || "ExamNova Seller",
     sourcePdfId: listing.sourcePdfId?._id?.toString?.() || listing.sourcePdfId?.toString?.() || null,
     priceInr: listing.priceInr,
+    sourceType: listing.sourceType || "generated_pdf",
+    adminUploadId: listing.adminUploadId?._id?.toString?.() || listing.adminUploadId?.toString?.() || null,
     visibility: listing.visibility,
     approvalStatus: listing.approvalStatus,
     moderationStatus: listing.moderationStatus,
     isPublished: Boolean(listing.isPublished),
     salesCount: listing.salesCount || 0,
     viewCount: listing.viewCount || 0,
+    coverSeal: listing.coverSeal || "",
+    releaseAt: listing.releaseAt || null,
     taxonomy: listing.taxonomy,
     createdAt: listing.createdAt,
     updatedAt: listing.updatedAt,
@@ -435,6 +444,83 @@ export const adminService = {
     });
 
     return after;
+  },
+
+  async updateListingMetadata(listingId, payload, actor, req) {
+    const listing = await MarketplaceListing.findById(listingId).populate("sellerId", "name role sellerProfile");
+    if (!listing) {
+      throw new ApiError(404, "Listing not found.");
+    }
+
+    const before = serializeListing(listing);
+
+    listing.title = payload.title;
+    listing.priceInr = Number(payload.priceInr);
+    listing.releaseAt = normalizeReleaseAt(payload.releaseAt);
+    listing.coverSeal = normalizeCoverSeal(payload.coverSeal);
+    await listing.save();
+
+    if (listing.sourceType === "admin_upload" && listing.adminUploadId) {
+      await AdminUploadedPdf.findByIdAndUpdate(listing.adminUploadId, {
+        title: payload.title,
+        priceInr: Number(payload.priceInr),
+        releaseAt: normalizeReleaseAt(payload.releaseAt),
+        coverSeal: normalizeCoverSeal(payload.coverSeal),
+      });
+    }
+
+    const after = serializeListing(listing);
+    await createAuditLog({
+      actor,
+      req,
+      action: "admin.listing.update_metadata",
+      entityType: "MarketplaceListing",
+      entityId: listing._id,
+      before,
+      after,
+    });
+
+    return after;
+  },
+
+  async deleteListing(listingId, actor, req) {
+    const listing = await MarketplaceListing.findById(listingId).populate("sellerId", "name role sellerProfile");
+    if (!listing) {
+      throw new ApiError(404, "Listing not found.");
+    }
+
+    const before = serializeListing(listing);
+
+    if (listing.sourceType === "admin_upload" && listing.adminUploadId) {
+      const adminUpload = await AdminUploadedPdf.findById(listing.adminUploadId);
+      if (adminUpload) {
+        adminUpload.isDeleted = true;
+        adminUpload.deletedAt = new Date();
+        adminUpload.visibility = "archived";
+        await adminUpload.save();
+      }
+    } else if (listing.sourceType === "generated_pdf" && listing.sourcePdfId) {
+      await GeneratedPdf.findByIdAndUpdate(listing.sourcePdfId, {
+        listedInMarketplace: false,
+      });
+    }
+
+    await MarketplaceListing.findByIdAndDelete(listing._id);
+
+    await createAuditLog({
+      actor,
+      req,
+      action: "admin.listing.delete",
+      entityType: "MarketplaceListing",
+      entityId: listing._id,
+      before,
+      after: { deleted: true },
+    });
+
+    return {
+      id: listing._id.toString(),
+      title: listing.title,
+    };
   },
 
   async listPurchases() {

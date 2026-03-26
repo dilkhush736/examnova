@@ -221,7 +221,7 @@ export function AdminUploadsPage() {
         <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
       ) : null}
 
-      <section className="two-column-grid admin-grid">
+      <section className="stack-section admin-uploads-shell">
         <form className="detail-card form-card" onSubmit={handleSubmit}>
           <SectionHeader
             eyebrow={editingId ? "Edit mode" : "New upload"}

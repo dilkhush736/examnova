@@ -6,6 +6,7 @@ import { adminActionRateLimiter } from "../../middleware/index.js";
 import { USER_ROLES } from "../../constants/app.constants.js";
 import {
   validateAdminListingAction,
+  validateAdminListingUpdate,
   validateAdminUserAction,
   validateAdminWithdrawalAction,
 } from "../../validators/index.js";
@@ -24,6 +25,8 @@ router.get("/users/:id", asyncHandler(adminController.getUser));
 router.patch("/users/:id/status", validateAdminUserAction, asyncHandler(adminController.updateUserStatus));
 router.get("/listings", asyncHandler(adminController.listListings));
 router.patch("/listings/:id/status", validateAdminListingAction, asyncHandler(adminController.updateListingStatus));
+router.patch("/listings/:id", validateAdminListingUpdate, asyncHandler(adminController.updateListingMetadata));
+router.delete("/listings/:id", asyncHandler(adminController.deleteListing));
 router.get("/purchases", asyncHandler(adminController.listPurchases));
 router.get("/payments", asyncHandler(adminController.listPayments));
 router.get("/withdrawals", asyncHandler(adminController.listWithdrawals));
