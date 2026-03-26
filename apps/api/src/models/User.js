@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { COLLECTION_NAMES } from "../constants/db.constants.js";
+import { DEVELOPER_MODE_UNLOCK_PRICE, PLATFORM_MODES } from "../constants/app.constants.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -39,6 +40,16 @@ const userSchema = new mongoose.Schema(
       bio: { type: String, default: "" },
       payoutMethod: { type: String, default: "" },
       payoutReference: { type: String, default: "" },
+    },
+    modeAccess: {
+      currentMode: {
+        type: String,
+        default: PLATFORM_MODES.PROFESSIONAL,
+        enum: [PLATFORM_MODES.PROFESSIONAL, PLATFORM_MODES.DEVELOPER],
+      },
+      developerUnlockedAt: { type: Date, default: null },
+      developerUnlockPaymentId: { type: mongoose.Schema.Types.ObjectId, ref: "Payment", default: null },
+      developerUnlockAmountInr: { type: Number, default: DEVELOPER_MODE_UNLOCK_PRICE },
     },
   },
   {

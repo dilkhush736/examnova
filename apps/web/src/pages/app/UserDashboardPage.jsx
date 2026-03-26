@@ -6,11 +6,18 @@ import { SectionHeader } from "../../components/ui/SectionHeader.jsx";
 import { EmptyStateCard } from "../../components/ui/EmptyStateCard.jsx";
 import { LoadingCard } from "../../components/ui/LoadingCard.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import {
+  hasDeveloperAccess,
+  MODE_LABELS,
+  normalizeModeAccess,
+} from "../../utils/modes.js";
 
 export function UserDashboardPage() {
   const { user, accessToken, dashboardSummary, fetchDashboardSummary } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const modeAccess = normalizeModeAccess(user);
+  const developerActive = hasDeveloperAccess(modeAccess);
 
   useEffect(() => {
     let active = true;
@@ -49,8 +56,9 @@ export function UserDashboardPage() {
       <PageHero
         eyebrow="Dashboard"
         title={`Welcome, ${user?.name || "Student"}`}
-        description="This overview is designed to become the command center for uploads, generated PDFs, marketplace activity, wallet movement, and notifications."
+        description={`This overview reflects ${MODE_LABELS[modeAccess.currentMode].toLowerCase()} so the workspace stays understandable instead of showing every tool at once.`}
         metrics={[
+          { label: "Mode", value: MODE_LABELS[modeAccess.currentMode] },
           { label: "Completion", value: `${dashboardSummary?.overview?.profileCompletionPercent ?? 0}%` },
           { label: "Wallet", value: `Rs ${dashboardSummary?.wallet?.availableBalance ?? 0}` },
           { label: "Unread", value: `${dashboardSummary?.counters?.unreadNotifications ?? 0}` },
@@ -59,12 +67,19 @@ export function UserDashboardPage() {
           <>
             <Link className="button primary" to="/app/upload-generate">
               <i className="bi bi-cloud-arrow-up" />
-              Upload document
+              Open AI workflow
             </Link>
-            <Link className="button secondary" to="/marketplace">
-              <i className="bi bi-shop" />
-              Explore marketplace
-            </Link>
+            {developerActive ? (
+              <Link className="button secondary" to="/app/listed-pdfs">
+                <i className="bi bi-shop" />
+                Manage seller listings
+              </Link>
+            ) : (
+              <Link className="button secondary" to="/app/settings#mode-access">
+                <i className="bi bi-stars" />
+                Compare modes
+              </Link>
+            )}
           </>
         }
       />
@@ -113,10 +128,12 @@ export function UserDashboardPage() {
             description="Jump into the most important account areas from one place."
           />
           <div className="shortcut-grid">
-            <Link className="shortcut-card" to="/app/upload-generate">Generate PDF</Link>
+            <Link className="shortcut-card" to="/app/upload-generate">Open AI workflow</Link>
             <Link className="shortcut-card" to="/app/generated-pdfs">View generated PDFs</Link>
-            <Link className="shortcut-card" to="/app/wallet">Open wallet</Link>
             <Link className="shortcut-card" to="/app/profile">Edit profile</Link>
+            <Link className="shortcut-card" to={developerActive ? "/app/listed-pdfs" : "/app/settings#mode-access"}>
+              {developerActive ? "Manage listings" : "Unlock developer tools"}
+            </Link>
           </div>
         </section>
       </div>
@@ -134,8 +151,16 @@ export function UserDashboardPage() {
         />
         <EmptyStateCard
           title="Listed PDFs"
-          description={dashboardSummary?.sections?.listedPdfs?.emptyMessage || "Listed PDFs will appear here."}
-          action={<Link className="button secondary" to="/app/listed-pdfs">Open section</Link>}
+          description={
+            developerActive
+              ? dashboardSummary?.sections?.listedPdfs?.emptyMessage || "Listed PDFs will appear here."
+              : "Developer Mode keeps seller listings hidden until you unlock and switch into that mode."
+          }
+          action={
+            <Link className="button secondary" to={developerActive ? "/app/listed-pdfs" : "/app/settings#mode-access"}>
+              {developerActive ? "Open section" : "Open mode settings"}
+            </Link>
+          }
         />
       </div>
     </section>

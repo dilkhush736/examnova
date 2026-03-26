@@ -1,4 +1,4 @@
-import { createStorageClient } from "../../lib/index.js";
+import { createStorageClient, hashToken } from "../../lib/index.js";
 import { MarketplaceListing, Purchase } from "../../models/index.js";
 import { ApiError } from "../../utils/ApiError.js";
 
@@ -7,7 +7,9 @@ const storageClient = createStorageClient();
 function serializePurchase(record) {
   return {
     id: record._id.toString(),
-    buyerId: record.buyerId?.toString?.() || null,
+    buyerId: record.buyerId?._id?.toString?.() || record.buyerId?.toString?.() || null,
+    buyerMode: record.buyerMode || "account",
+    buyerName: record.guestBuyerName || record.buyerId?.name || "",
     sellerId: record.sellerId?._id?.toString?.() || record.sellerId?.toString?.() || null,
     sellerName: record.sellerId?.sellerProfile?.displayName || record.sellerId?.name || "ExamNova Seller",
     listingId: record.listingId?._id?.toString?.() || record.listingId?.toString?.() || null,
@@ -25,6 +27,44 @@ function serializePurchase(record) {
     purchasedAt: record.createdAt,
     taxonomy: record.listingId?.taxonomy || null,
     studyMetadata: record.listingId?.studyMetadata || {},
+  };
+}
+
+async function findDownloadableListing(listingId) {
+  return MarketplaceListing.findById(listingId)
+    .populate("sourcePdfId")
+    .populate("adminUploadId");
+}
+
+async function buildPurchaseDownloadFile(listing) {
+  const storageKey = listing?.sourceType === "admin_upload"
+    ? listing?.adminUploadId?.storageKey
+    : listing?.sourcePdfId?.storageKey;
+
+  if (!storageKey) {
+    throw new ApiError(404, "Purchased PDF file is not available.");
+  }
+
+  let absolutePath;
+
+  try {
+    absolutePath = await storageClient.resolveExisting(storageKey);
+  } catch {
+    throw new ApiError(
+      404,
+      listing?.sourceType === "admin_upload"
+        ? "This purchased PDF file is missing on the server. Please re-upload the admin PDF and republish the listing."
+        : "This purchased PDF file is missing on the server. Please regenerate the PDF and try again.",
+    );
+  }
+
+  return {
+    absolutePath,
+    downloadName:
+      (listing?.sourceType === "admin_upload"
+        ? listing?.adminUploadId?.originalName
+        : listing?.sourcePdfId?.pdfDownloadName) ||
+      `${listing.title.replace(/\s+/g, "-").toLowerCase()}.pdf`,
   };
 }
 
@@ -73,38 +113,40 @@ export const purchaseService = {
       throw new ApiError(404, "Purchased PDF not found in your library.");
     }
 
-    const listing = await MarketplaceListing.findById(purchase.listingId?._id || purchase.listingId)
-      .populate("sourcePdfId")
-      .populate("adminUploadId");
+    const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);
+    return buildPurchaseDownloadFile(listing);
+  },
 
-    const storageKey = listing?.sourceType === "admin_upload"
-      ? listing?.adminUploadId?.storageKey
-      : listing?.sourcePdfId?.storageKey;
-
-    if (!storageKey) {
-      throw new ApiError(404, "Purchased PDF file is not available.");
+  async getGuestPurchaseDownload(purchaseId, guestToken) {
+    const normalizedToken = String(guestToken || "").trim();
+    if (!normalizedToken) {
+      throw new ApiError(401, "Guest download token is required.");
     }
 
-    let absolutePath;
+    const purchase = await Purchase.findOne({
+      _id: purchaseId,
+      buyerMode: "guest",
+      status: "completed",
+      buyerAccessState: "granted",
+    }).populate("listingId");
 
-    try {
-      absolutePath = await storageClient.resolveExisting(storageKey);
-    } catch {
-      throw new ApiError(
-        404,
-        listing?.sourceType === "admin_upload"
-          ? "This purchased PDF file is missing on the server. Please re-upload the admin PDF and republish the listing."
-          : "This purchased PDF file is missing on the server. Please regenerate the PDF and try again.",
-      );
+    if (!purchase) {
+      throw new ApiError(404, "Guest purchase not found.");
     }
 
-    return {
-      absolutePath,
-      downloadName:
-        (listing?.sourceType === "admin_upload"
-          ? listing?.adminUploadId?.originalName
-          : listing?.sourcePdfId?.pdfDownloadName) ||
-        `${listing.title.replace(/\s+/g, "-").toLowerCase()}.pdf`,
-    };
+    if (!purchase.guestAccessTokenHash || !purchase.guestAccessExpiresAt) {
+      throw new ApiError(403, "Guest download access is not active for this purchase.");
+    }
+
+    if (purchase.guestAccessExpiresAt.getTime() < Date.now()) {
+      throw new ApiError(403, "Guest download access has expired. Please use the latest purchase success screen.");
+    }
+
+    if (hashToken(normalizedToken) !== purchase.guestAccessTokenHash) {
+      throw new ApiError(403, "Guest download token is invalid.");
+    }
+
+    const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);
+    return buildPurchaseDownloadFile(listing);
   },
 };

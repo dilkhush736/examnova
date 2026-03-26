@@ -43,10 +43,14 @@ export {
   updateGeneratedAnswers,
 } from "./generations.js";
 export {
+  createDeveloperModeOrder,
   createPrivatePdfOrder,
   createMarketplaceOrder,
+  createPublicMarketplaceOrder,
   getPrivatePdfPaymentStatus,
+  verifyDeveloperModePayment,
   verifyMarketplacePayment,
+  verifyPublicMarketplacePayment,
   verifyPrivatePdfPayment,
 } from "./payments.js";
 export {
@@ -57,7 +61,7 @@ export {
   fetchPublicListings,
   updateMarketplaceListing,
 } from "./marketplace.js";
-export { downloadLibraryItem, fetchLibrary, fetchLibraryItem } from "./library.js";
+export { downloadGuestLibraryItem, downloadLibraryItem, fetchLibrary, fetchLibraryItem } from "./library.js";
 export { fetchWallet, fetchWalletTransactions } from "./wallet.js";
 export { cancelWithdrawal, createWithdrawal, fetchWithdrawals } from "./withdrawals.js";
 export {

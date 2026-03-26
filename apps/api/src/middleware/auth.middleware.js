@@ -1,6 +1,14 @@
 import { User } from "../models/index.js";
 import { sendError } from "../utils/apiResponse.js";
 import { verifyAccessToken } from "../lib/index.js";
+import { PLATFORM_MODES } from "../constants/app.constants.js";
+import {
+  buildModeAccessErrorDetails,
+  canAccessDeveloperFeatures,
+  canAccessProfessionalFeatures,
+  getAvailableAccountModes,
+  getModeAccessSnapshot,
+} from "../utils/userMode.js";
 
 function getBearerToken(req) {
   const authorizationHeader = req.headers.authorization || "";
@@ -39,6 +47,8 @@ export async function requireAuth(req, res, next) {
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
+      mode: getModeAccessSnapshot(user).currentMode,
+      availableModes: getAvailableAccountModes(user),
     };
     req.user = user;
 
@@ -59,4 +69,38 @@ export function requireRole(_allowedRoles = []) {
 
     return next();
   };
+}
+
+export function requireProfessionalMode(req, res, next) {
+  if (!req.user) {
+    return sendError(res, "Authentication required.", 401);
+  }
+
+  if (canAccessProfessionalFeatures(req.user)) {
+    return next();
+  }
+
+  return sendError(
+    res,
+    "Professional Mode is required to use the AI workflow and account PDF tools.",
+    403,
+    buildModeAccessErrorDetails(req.user, PLATFORM_MODES.PROFESSIONAL),
+  );
+}
+
+export function requireDeveloperMode(req, res, next) {
+  if (!req.user) {
+    return sendError(res, "Authentication required.", 401);
+  }
+
+  if (canAccessDeveloperFeatures(req.user)) {
+    return next();
+  }
+
+  const modeDetails = buildModeAccessErrorDetails(req.user, PLATFORM_MODES.DEVELOPER);
+  const message = modeDetails.developerUnlocked
+    ? "Switch to Developer Mode before publishing or selling PDFs publicly."
+    : `Developer Mode is required to upload and sell PDFs publicly. Unlock it for Rs. ${modeDetails.developerUnlockAmountInr}.`;
+
+  return sendError(res, message, 403, modeDetails);
 }

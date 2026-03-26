@@ -11,18 +11,11 @@ import {
   YEAR_OPTIONS,
 } from "../../features/academic/academicTaxonomy.js";
 import { useAuth } from "../../hooks/useAuth.js";
-
-const controlLinks = [
-  { to: "/marketplace", label: "Marketplace", description: "Discover and buy premium PDFs." },
-  { to: "/app/purchased-pdfs", label: "Purchased PDFs", description: "Open your buyer library." },
-  { to: "/app/listed-pdfs", label: "Listed PDFs", description: "Manage what you sell publicly." },
-  { to: "/app/generated-pdfs", label: "Generated PDFs", description: "Review AI-generated output." },
-  { to: "/app/upload-generate", label: "Upload & Generate", description: "Start a new document workflow." },
-  { to: "/app/wallet", label: "Wallet", description: "Track credits and balance." },
-  { to: "/app/withdrawals", label: "Withdrawals", description: "Request and review payouts." },
-  { to: "/app/notifications", label: "Notifications", description: "Check system and purchase updates." },
-  { to: "/app/settings", label: "Settings", description: "Control your preferences." },
-];
+import {
+  hasDeveloperAccess,
+  MODE_LABELS,
+  normalizeModeAccess,
+} from "../../utils/modes.js";
 
 export function ProfilePage() {
   const { user, accessToken, refreshProfile, updateProfile } = useAuth();
@@ -38,6 +31,23 @@ export function ProfilePage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const modeAccess = normalizeModeAccess(user);
+  const developerActive = hasDeveloperAccess(modeAccess);
+  const controlLinks = [
+    { to: "/marketplace", label: "Marketplace", description: "Discover and buy premium PDFs." },
+    { to: "/app/purchased-pdfs", label: "Purchased PDFs", description: "Open your buyer library." },
+    { to: "/app/generated-pdfs", label: "Generated PDFs", description: "Review AI-generated output." },
+    { to: "/app/upload-generate", label: "AI Workflow", description: "Start the Professional workflow." },
+    ...(developerActive
+      ? [
+        { to: "/app/listed-pdfs", label: "Listed PDFs", description: "Manage what you sell publicly." },
+        { to: "/app/wallet", label: "Wallet", description: "Track credits and balance." },
+        { to: "/app/withdrawals", label: "Withdrawals", description: "Request and review payouts." },
+      ]
+      : []),
+    { to: "/app/notifications", label: "Notifications", description: "Check system and purchase updates." },
+    { to: "/app/settings", label: "Settings", description: "Control your mode and preferences." },
+  ];
 
   useEffect(() => {
     refreshProfile().catch(() => {});
@@ -83,6 +93,7 @@ export function ProfilePage() {
         description="This is your main account hub. Update identity details here, then jump into purchases, listings, generated PDFs, wallet activity, withdrawals, notifications, and settings from one clear surface."
         metrics={[
           { label: "Role", value: user?.role || "student" },
+          { label: "Mode", value: MODE_LABELS[modeAccess.currentMode] },
           { label: "Status", value: user?.status || "active" },
           { label: "Verified", value: user?.isEmailVerified ? "Yes" : "Pending" },
         ]}
@@ -178,8 +189,24 @@ export function ProfilePage() {
             items={[
               { label: "Email", value: user.email },
               { label: "Role", value: user.role },
+              { label: "Current mode", value: MODE_LABELS[modeAccess.currentMode] },
               { label: "Status", value: user.status },
               { label: "Email verified", value: user.isEmailVerified ? "Yes" : "No" },
+            ]}
+          />
+          <InfoGridCard
+            title="Mode access"
+            items={[
+              { label: "Professional tools", value: "Enabled" },
+              { label: "Developer unlocked", value: modeAccess.developerUnlocked ? "Yes" : "No" },
+              {
+                label: "Seller tools",
+                value: developerActive ? "Visible in sidebar" : "Unlock from settings",
+              },
+              {
+                label: "Next step",
+                value: developerActive ? "Manage listed PDFs" : "Upgrade in settings if you want to sell",
+              },
             ]}
           />
           <InfoGridCard

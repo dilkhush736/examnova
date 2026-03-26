@@ -17,6 +17,7 @@ export {
 export { validateUploadRequest } from "./upload.validator.js";
 export {
   validateMarketplaceOrderRequest,
+  validatePublicMarketplaceOrderRequest,
   validatePaymentVerification,
   validatePrivatePdfOrderRequest,
 } from "./payment.validator.js";

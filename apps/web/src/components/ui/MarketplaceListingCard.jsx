@@ -3,11 +3,16 @@ import { StatusBadge } from "./StatusBadge.jsx";
 
 export function MarketplaceListingCard({ listing, sellerView = false, action = null }) {
   const studyMetadata = listing.studyMetadata || {};
+  const isAdminUpload = listing.sourceType === "admin_upload";
+  const sourceLabel = listing.sellerSourceLabel || (isAdminUpload ? "ExamNova Admin" : "Student Seller");
+  const sourceTone = isAdminUpload ? "warning" : "neutral";
+  const sourceDescription = isAdminUpload ? "Official ExamNova upload" : "Uploaded by a student seller";
+  const sellerLabel = listing.sellerName || (isAdminUpload ? "ExamNova Team" : "ExamNova Seller");
 
   return (
     <article className="marketplace-card">
       <div className="marketplace-card-header">
-        <div>
+        <div className="marketplace-card-copy">
           <p className="eyebrow">{listing.taxonomy?.subject || "Marketplace PDF"}</p>
           <h3>{listing.title}</h3>
           <p className="support-copy">
@@ -15,6 +20,7 @@ export function MarketplaceListingCard({ listing, sellerView = false, action = n
           </p>
         </div>
         <div className="topbar-chip-group">
+          <StatusBadge tone={sourceTone}>{sourceLabel}</StatusBadge>
           <StatusBadge tone="success">Rs. {listing.priceInr}</StatusBadge>
           {sellerView ? (
             <StatusBadge tone={listing.isPublished ? "success" : "warning"}>
@@ -38,15 +44,15 @@ export function MarketplaceListingCard({ listing, sellerView = false, action = n
         <span>
           {sellerView
             ? `Views ${listing.viewCount || 0} - Sales ${listing.salesCount || 0}`
-            : `${listing.sellerSourceLabel || "Seller"}: ${listing.sellerName || "ExamNova Seller"}`}
+            : `${sourceDescription} - ${sellerLabel}`}
         </span>
-        <span>{sellerView ? (listing.isPublished ? "Published" : "Draft/Unlisted") : "Permanent library access"}</span>
+        <span>{sellerView ? (listing.isPublished ? "Published" : "Draft/Unlisted") : "Open the listing to review and buy"}</span>
       </div>
 
       <div className="hero-actions card-actions">
         <Link className={sellerView ? "button secondary" : "button primary"} to={`/pdf/${listing.slug}`}>
           <i className="bi bi-arrow-up-right" />
-          {sellerView ? "View detail" : "View & buy"}
+          {sellerView ? "View detail" : "Review PDF"}
         </Link>
         {action}
       </div>

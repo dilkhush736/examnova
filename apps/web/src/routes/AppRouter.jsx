@@ -3,7 +3,6 @@ import { PublicLayout } from "../components/layout/PublicLayout.jsx";
 import { AuthLayout } from "../components/layout/AuthLayout.jsx";
 import { DashboardLayout } from "../components/layout/DashboardLayout.jsx";
 import { AdminLayout } from "../components/layout/AdminLayout.jsx";
-import { HomePage } from "../pages/public/HomePage.jsx";
 import { MarketplacePage } from "../pages/public/MarketplacePage.jsx";
 import { PdfDetailPage } from "../pages/public/PdfDetailPage.jsx";
 import { UpcomingLockedPage } from "../pages/public/UpcomingLockedPage.jsx";
@@ -48,12 +47,14 @@ import { NotFoundPage } from "../pages/shared/NotFoundPage.jsx";
 import { ProtectedRoute } from "../guards/ProtectedRoute.jsx";
 import { AdminRoute } from "../guards/AdminRoute.jsx";
 import { PublicOnlyRoute } from "../guards/PublicOnlyRoute.jsx";
+import { ModeRoute } from "../guards/ModeRoute.jsx";
+import { PLATFORM_MODES } from "../utils/modes.js";
 
 export function AppRouter() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={<Navigate to="/marketplace" replace />} />
         <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/pdf/:slug" element={<PdfDetailPage />} />
         <Route path="/upcoming" element={<UpcomingLockedPage />} />
@@ -84,19 +85,19 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/app/profile" replace />} />
+        <Route index element={<Navigate to="/marketplace" replace />} />
         <Route path="dashboard" element={<UserDashboardPage />} />
-        <Route path="upload-generate" element={<UploadGeneratePage />} />
-        <Route path="documents/:id" element={<DocumentDetailPage />} />
-        <Route path="documents/:id/questions" element={<QuestionDetectionPage />} />
-        <Route path="documents/:id/answers" element={<AnswerGenerationPage />} />
-        <Route path="generated-pdfs" element={<GeneratedPdfsPage />} />
-        <Route path="generated-pdfs/:id" element={<GeneratedAnswerDetailPage />} />
+        <Route path="upload-generate" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><UploadGeneratePage /></ModeRoute>} />
+        <Route path="documents/:id" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><DocumentDetailPage /></ModeRoute>} />
+        <Route path="documents/:id/questions" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><QuestionDetectionPage /></ModeRoute>} />
+        <Route path="documents/:id/answers" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><AnswerGenerationPage /></ModeRoute>} />
+        <Route path="generated-pdfs" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><GeneratedPdfsPage /></ModeRoute>} />
+        <Route path="generated-pdfs/:id" element={<ModeRoute requiredMode={PLATFORM_MODES.PROFESSIONAL}><GeneratedAnswerDetailPage /></ModeRoute>} />
         <Route path="purchased-pdfs" element={<PurchasedPdfsPage />} />
-        <Route path="listed-pdfs" element={<ListedPdfsPage />} />
+        <Route path="listed-pdfs" element={<ModeRoute requiredMode={PLATFORM_MODES.DEVELOPER}><ListedPdfsPage /></ModeRoute>} />
         <Route path="profile" element={<ProfilePage />} />
-        <Route path="wallet" element={<WalletPage />} />
-        <Route path="withdrawals" element={<WithdrawalRequestsPage />} />
+        <Route path="wallet" element={<ModeRoute requiredMode={PLATFORM_MODES.DEVELOPER}><WalletPage /></ModeRoute>} />
+        <Route path="withdrawals" element={<ModeRoute requiredMode={PLATFORM_MODES.DEVELOPER}><WithdrawalRequestsPage /></ModeRoute>} />
         <Route path="payments" element={<PaymentHistoryPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<AccountSettingsPage />} />

@@ -7,6 +7,12 @@ export const USER_ROLES = {
   ADMIN: "admin",
 };
 
+export const PLATFORM_MODES = {
+  SIMPLE: "simple",
+  PROFESSIONAL: "professional",
+  DEVELOPER: "developer",
+};
+
 export const USER_STATUS = {
   ACTIVE: "active",
   PENDING_VERIFICATION: "pending_verification",
@@ -18,6 +24,20 @@ export const PURCHASE_TYPES = {
   PRIVATE_PDF: "private_pdf",
   MARKETPLACE: "marketplace",
 };
+
+export const PAYMENT_PURPOSES = {
+  PRIVATE_PDF: "private_pdf",
+  MARKETPLACE: "marketplace",
+  DEVELOPER_MODE_UNLOCK: "developer_mode_unlock",
+};
+
+export const PAYMENT_CONTEXT_TYPES = {
+  PRIVATE_PDF: "private_pdf",
+  MARKETPLACE: "marketplace",
+  ACCOUNT_MODE: "account_mode",
+};
+
+export const DEVELOPER_MODE_UNLOCK_PRICE = 10;
 
 export const MARKETPLACE_SPLIT = {
   ADMIN_PERCENT: 30,

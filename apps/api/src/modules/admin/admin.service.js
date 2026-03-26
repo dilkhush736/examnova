@@ -13,6 +13,7 @@ import {
 import { ApiError } from "../../utils/ApiError.js";
 import { walletService } from "../wallet/wallet.service.js";
 import { notificationService } from "../../services/notification.service.js";
+import { getModeAccessSnapshot } from "../../utils/userMode.js";
 
 function toSearchRegex(value) {
   return new RegExp(String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -31,6 +32,7 @@ function serializeUser(user) {
     phone: user.phone || "",
     academicProfile: user.academicProfile || {},
     sellerProfile: user.sellerProfile || {},
+    modeAccess: getModeAccessSnapshot(user),
     lastLoginAt: user.lastLoginAt || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -63,7 +65,8 @@ function serializePayment(payment) {
   return {
     id: payment._id.toString(),
     userId: payment.userId?._id?.toString?.() || payment.userId?.toString?.() || null,
-    userName: payment.userId?.name || "",
+    userName: payment.userId?.name || payment.guestBuyerName || "",
+    buyerMode: payment.buyerMode || "account",
     sellerId: payment.sellerId?._id?.toString?.() || payment.sellerId?.toString?.() || null,
     sellerName: payment.sellerId?.name || "",
     listingId: payment.listingId?._id?.toString?.() || payment.listingId?.toString?.() || null,
@@ -88,7 +91,8 @@ function serializePurchase(purchase) {
   return {
     id: purchase._id.toString(),
     buyerId: purchase.buyerId?._id?.toString?.() || purchase.buyerId?.toString?.() || null,
-    buyerName: purchase.buyerId?.name || "",
+    buyerName: purchase.buyerId?.name || purchase.guestBuyerName || "",
+    buyerMode: purchase.buyerMode || "account",
     sellerId: purchase.sellerId?._id?.toString?.() || purchase.sellerId?.toString?.() || null,
     sellerName: purchase.sellerId?.name || "",
     listingId: purchase.listingId?._id?.toString?.() || purchase.listingId?.toString?.() || null,

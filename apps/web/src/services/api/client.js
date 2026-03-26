@@ -104,12 +104,12 @@ export async function apiRequest(path, options = {}) {
   return payload;
 }
 
-export async function apiDownload(path, accessToken) {
+export async function apiDownloadRequest(path, options = {}) {
+  const { headers = {}, ...restOptions } = options;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers,
+    ...restOptions,
   });
 
   if (!response.ok) {
@@ -136,4 +136,16 @@ export async function apiDownload(path, accessToken) {
     blob: await response.blob(),
     filename: response.headers.get("content-disposition") || "",
   };
+}
+
+export async function apiDownload(path, accessToken) {
+  return apiDownloadRequest(path, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function apiPublicDownload(path, headers = {}) {
+  return apiDownloadRequest(path, { headers });
 }

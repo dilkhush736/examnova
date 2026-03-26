@@ -1,4 +1,4 @@
-import { apiDownload, apiRequest } from "./client.js";
+import { apiDownload, apiPublicDownload, apiRequest } from "./client.js";
 
 function authHeaders(accessToken) {
   return {
@@ -20,4 +20,10 @@ export function fetchLibraryItem(accessToken, purchaseId) {
 
 export function downloadLibraryItem(accessToken, purchaseId) {
   return apiDownload(`/library/${purchaseId}/download`, accessToken);
+}
+
+export function downloadGuestLibraryItem(purchaseId, token) {
+  return apiPublicDownload(`/library/guest/${purchaseId}/download`, {
+    "x-guest-purchase-token": token,
+  });
 }

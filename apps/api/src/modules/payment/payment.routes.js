@@ -5,12 +5,38 @@ import { requireAuth } from "../../middleware/auth.middleware.js";
 import { paymentRateLimiter } from "../../middleware/index.js";
 import {
   validateMarketplaceOrderRequest,
+  validatePublicMarketplaceOrderRequest,
   validatePaymentVerification,
   validatePrivatePdfOrderRequest,
 } from "../../validators/index.js";
 
 const router = Router();
 
+router.post(
+  "/developer-mode-order",
+  requireAuth,
+  paymentRateLimiter,
+  asyncHandler(paymentController.createDeveloperModeUnlockOrder),
+);
+router.post(
+  "/developer-mode-verify",
+  requireAuth,
+  paymentRateLimiter,
+  validatePaymentVerification,
+  asyncHandler(paymentController.verifyDeveloperModeUnlockPayment),
+);
+router.post(
+  "/public-marketplace-order",
+  paymentRateLimiter,
+  validatePublicMarketplaceOrderRequest,
+  asyncHandler(paymentController.createPublicMarketplaceOrder),
+);
+router.post(
+  "/public-marketplace-verify",
+  paymentRateLimiter,
+  validatePaymentVerification,
+  asyncHandler(paymentController.verifyPublicMarketplacePayment),
+);
 router.post(
   "/private-pdf-order",
   requireAuth,

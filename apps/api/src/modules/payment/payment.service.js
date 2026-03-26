@@ -1,6 +1,11 @@
+import crypto from "node:crypto";
+import mongoose from "mongoose";
 import {
   APP_NAME,
+  DEVELOPER_MODE_UNLOCK_PRICE,
   MARKETPLACE_SPLIT,
+  PAYMENT_CONTEXT_TYPES,
+  PAYMENT_PURPOSES,
   PAYMENT_STATUS,
   PURCHASE_TYPES,
 } from "../../constants/app.constants.js";
@@ -9,16 +14,19 @@ import {
   MarketplaceListing,
   Payment,
   Purchase,
+  User,
   WalletTransaction,
 } from "../../models/index.js";
 import { env } from "../../config/index.js";
-import { createPaymentClient } from "../../lib/index.js";
+import { createPaymentClient, hashToken } from "../../lib/index.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { notificationService } from "../../services/notification.service.js";
 import { pdfGenerationService } from "../pdf/pdfGeneration.service.js";
 import { purchaseService } from "../purchase/purchase.service.js";
+import { getModeAccessSnapshot, isDeveloperUnlocked } from "../../utils/userMode.js";
 
 const PRIVATE_PDF_PRICE = 4;
+const GUEST_PURCHASE_ACCESS_TTL_MS = 1000 * 60 * 60 * 24;
 let paymentClientInstance = null;
 
 function getMissingPaymentEnvVars() {
@@ -74,7 +82,7 @@ function getPaymentClient() {
   return paymentClientInstance;
 }
 
-function buildCheckoutPayload(paymentClient, { amountInr, currency, orderId, description, notes }) {
+function buildCheckoutPayload(paymentClient, { amountInr, currency, orderId, description, notes, prefill = {} }) {
   return {
     key: paymentClient.getPublicConfig().keyId,
     amount: amountInr * 100,
@@ -82,7 +90,7 @@ function buildCheckoutPayload(paymentClient, { amountInr, currency, orderId, des
     orderId,
     name: APP_NAME,
     description,
-    prefill: {},
+    prefill,
     notes,
   };
 }
@@ -91,17 +99,24 @@ async function createProviderOrder({ entityId, amountInr, notes, userMessage, co
   const paymentClient = getPaymentClient();
 
   try {
-    const order = contextType === PURCHASE_TYPES.MARKETPLACE
-      ? await paymentClient.createMarketplaceOrder({
-        listingId: entityId,
-        amountInr,
-        notes,
-      })
-      : await paymentClient.createPrivatePdfOrder({
-        generationId: entityId,
-        amountInr,
-        notes,
-      });
+    const order =
+      contextType === PAYMENT_CONTEXT_TYPES.MARKETPLACE
+        ? await paymentClient.createMarketplaceOrder({
+          listingId: entityId,
+          amountInr,
+          notes,
+        })
+        : contextType === PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE
+          ? await paymentClient.createAccountUpgradeOrder({
+            userId: entityId,
+            amountInr,
+            notes,
+          })
+          : await paymentClient.createPrivatePdfOrder({
+            generationId: entityId,
+            amountInr,
+            notes,
+          });
 
     return { order, paymentClient };
   } catch (error) {
@@ -116,12 +131,14 @@ async function createProviderOrder({ entityId, amountInr, notes, userMessage, co
 function serializePayment(record) {
   return {
     id: record._id.toString(),
-    userId: record.userId?.toString?.() || String(record.userId),
+    userId: record.userId?._id?.toString?.() || record.userId?.toString?.() || null,
+    buyerMode: record.buyerMode || "account",
+    buyerName: record.guestBuyerName || record.userId?.name || "",
     purpose: record.purpose,
     contextType: record.contextType || "private_pdf",
-    generatedPdfId: record.generatedPdfId?.toString?.() || null,
-    listingId: record.listingId?.toString?.() || null,
-    sellerId: record.sellerId?.toString?.() || null,
+    generatedPdfId: record.generatedPdfId?._id?.toString?.() || record.generatedPdfId?.toString?.() || null,
+    listingId: record.listingId?._id?.toString?.() || record.listingId?.toString?.() || null,
+    sellerId: record.sellerId?._id?.toString?.() || record.sellerId?.toString?.() || null,
     amountInr: record.amountInr,
     currency: record.currency,
     provider: record.provider,
@@ -155,6 +172,20 @@ async function findOwnedGeneration(userId, generationId) {
     throw new ApiError(404, "Generated PDF not found.");
   }
   return generation;
+}
+
+async function findAccountUpgradeUser(userId) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new ApiError(404, "User account not found.");
+  }
+
+  if (user.isBlocked || user.status === "blocked" || user.status === "suspended") {
+    throw new ApiError(403, "Your account is blocked. Please contact support.");
+  }
+
+  return user;
 }
 
 async function findPendingPaymentForOrder(orderId) {
@@ -201,6 +232,66 @@ async function findPurchasableListing(listingId) {
   }
 
   return listing;
+}
+
+function normalizeBuyerName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 80);
+}
+
+async function issueGuestPurchaseAccess(purchase) {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  purchase.guestAccessTokenHash = hashToken(rawToken);
+  purchase.guestAccessExpiresAt = new Date(Date.now() + GUEST_PURCHASE_ACCESS_TTL_MS);
+  await purchase.save();
+
+  return {
+    purchaseId: purchase._id.toString(),
+    token: rawToken,
+    expiresAt: purchase.guestAccessExpiresAt,
+    downloadPath: `/library/guest/${purchase._id.toString()}/download`,
+    buyerName: purchase.guestBuyerName || "",
+  };
+}
+
+async function ensureSellerCredit(listing, purchase, split) {
+  const existingSellerCredit = await WalletTransaction.findOne({
+    userId: listing.sellerId,
+    sourceType: PURCHASE_TYPES.MARKETPLACE,
+    sourceId: purchase._id,
+    type: "marketplace_sale_credit",
+  });
+
+  if (existingSellerCredit) {
+    return;
+  }
+
+  const summaryRows = await WalletTransaction.aggregate([
+    { $match: { userId: listing.sellerId } },
+    {
+      $group: {
+        _id: null,
+        credits: {
+          $sum: { $cond: [{ $eq: ["$direction", "credit"] }, "$amountInr", 0] },
+        },
+        debits: {
+          $sum: { $cond: [{ $eq: ["$direction", "debit"] }, "$amountInr", 0] },
+        },
+      },
+    },
+  ]);
+  const summary = summaryRows[0] || { credits: 0, debits: 0 };
+  const balanceAfter = summary.credits - summary.debits + split.sellerEarningAmount;
+
+  await WalletTransaction.create({
+    userId: listing.sellerId,
+    type: "marketplace_sale_credit",
+    direction: "credit",
+    amountInr: split.sellerEarningAmount,
+    sourceType: PURCHASE_TYPES.MARKETPLACE,
+    sourceId: purchase._id,
+    balanceAfter,
+    note: `Marketplace sale credit for ${listing.title}`,
+  });
 }
 
 export const paymentService = {
@@ -382,6 +473,198 @@ export const paymentService = {
     };
   },
 
+  async createDeveloperModeUnlockOrder(userId) {
+    const user = await findAccountUpgradeUser(userId);
+
+    if (isDeveloperUnlocked(user)) {
+      return {
+        alreadyUnlocked: true,
+        modeAccess: getModeAccessSnapshot(user),
+        payment: null,
+        checkout: null,
+      };
+    }
+
+    const existingPendingPayment = await Payment.findOne({
+      userId,
+      purpose: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+      status: PAYMENT_STATUS.PENDING,
+    }).sort({ createdAt: -1 });
+
+    if (existingPendingPayment?.razorpayOrderId) {
+      const paymentClient = getPaymentClient();
+
+      return {
+        alreadyUnlocked: false,
+        modeAccess: getModeAccessSnapshot(user),
+        payment: serializePayment(existingPendingPayment),
+        checkout: buildCheckoutPayload(paymentClient, {
+          amountInr: existingPendingPayment.amountInr,
+          currency: existingPendingPayment.currency,
+          orderId: existingPendingPayment.razorpayOrderId,
+          description: "Developer Mode unlock for public selling access",
+          notes: {
+            contextType: PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE,
+            upgradeTarget: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+            userId: user._id.toString(),
+          },
+          prefill: {
+            name: user.name,
+            email: user.email,
+          },
+        }),
+      };
+    }
+
+    const { order, paymentClient } = await createProviderOrder({
+      entityId: user._id,
+      amountInr: DEVELOPER_MODE_UNLOCK_PRICE,
+      contextType: PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE,
+      notes: {
+        contextType: PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE,
+        upgradeTarget: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+        userId: user._id.toString(),
+      },
+      userMessage:
+        "Unable to start the Developer Mode unlock payment right now. Please try again in a moment.",
+    });
+
+    const payment = await Payment.create({
+      userId,
+      purpose: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+      contextType: PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE,
+      targetId: user._id,
+      amountInr: DEVELOPER_MODE_UNLOCK_PRICE,
+      currency: order.currency || "INR",
+      provider: "razorpay",
+      status: PAYMENT_STATUS.PENDING,
+      unlockStatus: "locked",
+      razorpayOrderId: order.id,
+      orderReceipt: order.receipt || "",
+    });
+
+    return {
+      alreadyUnlocked: false,
+      modeAccess: getModeAccessSnapshot(user),
+      payment: serializePayment(payment),
+      checkout: buildCheckoutPayload(paymentClient, {
+        amountInr: DEVELOPER_MODE_UNLOCK_PRICE,
+        currency: order.currency || "INR",
+        orderId: order.id,
+        description: "Developer Mode unlock for public selling access",
+        notes: {
+          contextType: PAYMENT_CONTEXT_TYPES.ACCOUNT_MODE,
+          upgradeTarget: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+          userId: user._id.toString(),
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
+      }),
+    };
+  },
+
+  async verifyDeveloperModeUnlockPayment(userId, payload) {
+    const payment = await findPendingPaymentForOrder(payload.orderId);
+
+    if (String(payment.userId) !== String(userId)) {
+      throw new ApiError(403, "You cannot verify another user's Developer Mode payment.");
+    }
+
+    if (payment.purpose !== PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK) {
+      throw new ApiError(400, "This payment order is not for Developer Mode unlock.");
+    }
+
+    const user = await findAccountUpgradeUser(userId);
+
+    if (payment.status === PAYMENT_STATUS.PAID && isDeveloperUnlocked(user)) {
+      return {
+        payment: serializePayment(payment),
+        modeAccess: getModeAccessSnapshot(user),
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING) {
+      throw new ApiError(409, "This Developer Mode payment is no longer pending verification.");
+    }
+
+    const signatureIsValid = getPaymentClient().verifySignature({
+      orderId: payload.orderId,
+      paymentId: payload.paymentId,
+      signature: payload.signature,
+    });
+
+    if (!signatureIsValid) {
+      payment.status = PAYMENT_STATUS.FAILED;
+      payment.failedAt = new Date();
+      payment.failureReason = "Razorpay signature verification failed.";
+      payment.verificationPayload = payload;
+      await payment.save();
+      await notificationService.notifyAdmins({
+        type: "admin_alert",
+        title: "Developer Mode payment verification failed",
+        message: "A Developer Mode unlock payment failed signature verification and may need review.",
+        actionUrl: "/admin/commerce",
+        metadata: {
+          paymentId: payment._id.toString(),
+          userId: userId.toString(),
+          purpose: PAYMENT_PURPOSES.DEVELOPER_MODE_UNLOCK,
+        },
+      });
+      throw new ApiError(400, "Developer Mode payment verification failed.");
+    }
+
+    await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
+
+    payment.status = PAYMENT_STATUS.PAID;
+    payment.unlockStatus = "unlocked";
+    payment.buyerAccessGranted = true;
+    payment.razorpayPaymentId = payload.paymentId;
+    payment.razorpaySignature = payload.signature;
+    payment.verifiedAt = new Date();
+    payment.failureReason = "";
+    payment.verificationPayload = payload;
+    await payment.save();
+
+    user.modeAccess = {
+      ...(user.modeAccess || {}),
+      currentMode: "developer",
+      developerUnlockedAt: user.modeAccess?.developerUnlockedAt || new Date(),
+      developerUnlockPaymentId: payment._id,
+      developerUnlockAmountInr:
+        Number(user.modeAccess?.developerUnlockAmountInr) || DEVELOPER_MODE_UNLOCK_PRICE,
+    };
+    await user.save();
+
+    await notificationService.create({
+      userId,
+      type: "developer_mode_unlocked",
+      title: "Developer Mode unlocked",
+      message: "Your account can now publish and sell PDFs publicly on the ExamNova marketplace.",
+      actionUrl: "/app/listed-pdfs",
+      metadata: {
+        paymentId: payment._id.toString(),
+        mode: "developer",
+      },
+    });
+    await notificationService.notifyAdmins({
+      type: "admin_alert",
+      title: "Developer Mode unlocked",
+      message: `${user.name} unlocked Developer Mode and can now publish marketplace PDFs.`,
+      actionUrl: "/admin/users",
+      metadata: {
+        userId: user._id.toString(),
+        paymentId: payment._id.toString(),
+      },
+    });
+
+    return {
+      payment: serializePayment(payment),
+      modeAccess: getModeAccessSnapshot(user),
+    };
+  },
+
   async createMarketplaceOrder(userId, listingId) {
     const listing = await findPurchasableListing(listingId);
 
@@ -420,7 +703,7 @@ export const paymentService = {
         alreadyOwned: false,
         purchase: null,
         payment: serializePayment(existingPendingPayment),
-        checkout: buildCheckoutPayload(paymentClient, {
+      checkout: buildCheckoutPayload(paymentClient, {
           amountInr: existingPendingPayment.amountInr,
           currency: existingPendingPayment.currency,
           orderId: existingPendingPayment.razorpayOrderId,
@@ -476,6 +759,94 @@ export const paymentService = {
         notes: {
           contextType: PURCHASE_TYPES.MARKETPLACE,
           listingId: listing._id.toString(),
+        },
+      }),
+    };
+  },
+
+  async createPublicMarketplaceOrder(listingId, fullName) {
+    const listing = await findPurchasableListing(listingId);
+    const guestBuyerName = normalizeBuyerName(fullName);
+    const guestIdentityId = new mongoose.Types.ObjectId();
+
+    const existingPendingPayment = await Payment.findOne({
+      buyerMode: "guest",
+      guestBuyerName,
+      listingId: listing._id,
+      status: PAYMENT_STATUS.PENDING,
+    }).sort({ createdAt: -1 });
+
+    if (existingPendingPayment?.razorpayOrderId) {
+      const paymentClient = getPaymentClient();
+
+      return {
+        alreadyOwned: false,
+        purchase: null,
+        payment: serializePayment(existingPendingPayment),
+        checkout: buildCheckoutPayload(paymentClient, {
+          amountInr: existingPendingPayment.amountInr,
+          currency: existingPendingPayment.currency,
+          orderId: existingPendingPayment.razorpayOrderId,
+          description: `Marketplace purchase for ${listing.title}`,
+          notes: {
+            contextType: PURCHASE_TYPES.MARKETPLACE,
+            listingId: listing._id.toString(),
+          },
+          prefill: {
+            name: guestBuyerName,
+          },
+        }),
+      };
+    }
+
+    const { order, paymentClient } = await createProviderOrder({
+      entityId: listing._id,
+      amountInr: listing.priceInr,
+      contextType: PURCHASE_TYPES.MARKETPLACE,
+      notes: {
+        contextType: PURCHASE_TYPES.MARKETPLACE,
+        listingId: listing._id.toString(),
+        guestBuyerName,
+      },
+      userMessage:
+        "Unable to start the public marketplace payment right now. Please try again in a moment.",
+    });
+
+    const payment = await Payment.create({
+      userId: guestIdentityId,
+      buyerMode: "guest",
+      guestBuyerName,
+      purpose: PURCHASE_TYPES.MARKETPLACE,
+      contextType: PURCHASE_TYPES.MARKETPLACE,
+      targetId: listing._id,
+      listingId: listing._id,
+      generatedPdfId: listing.sourcePdfId?._id || null,
+      adminUploadId: listing.adminUploadId?._id || null,
+      sellerId: listing.sellerId,
+      amountInr: listing.priceInr,
+      currency: order.currency || "INR",
+      provider: "razorpay",
+      status: PAYMENT_STATUS.PENDING,
+      unlockStatus: "locked",
+      razorpayOrderId: order.id,
+      orderReceipt: order.receipt || "",
+    });
+
+    return {
+      alreadyOwned: false,
+      purchase: null,
+      payment: serializePayment(payment),
+      checkout: buildCheckoutPayload(paymentClient, {
+        amountInr: listing.priceInr,
+        currency: order.currency || "INR",
+        orderId: order.id,
+        description: `Marketplace purchase for ${listing.title}`,
+        notes: {
+          contextType: PURCHASE_TYPES.MARKETPLACE,
+          listingId: listing._id.toString(),
+        },
+        prefill: {
+          name: guestBuyerName,
         },
       }),
     };
@@ -562,42 +933,7 @@ export const paymentService = {
       });
     }
 
-    const existingSellerCredit = await WalletTransaction.findOne({
-      userId: listing.sellerId,
-      sourceType: PURCHASE_TYPES.MARKETPLACE,
-      sourceId: purchase._id,
-      type: "marketplace_sale_credit",
-    });
-
-    if (!existingSellerCredit) {
-      const summaryRows = await WalletTransaction.aggregate([
-        { $match: { userId: listing.sellerId } },
-        {
-          $group: {
-            _id: null,
-            credits: {
-              $sum: { $cond: [{ $eq: ["$direction", "credit"] }, "$amountInr", 0] },
-            },
-            debits: {
-              $sum: { $cond: [{ $eq: ["$direction", "debit"] }, "$amountInr", 0] },
-            },
-          },
-        },
-      ]);
-      const summary = summaryRows[0] || { credits: 0, debits: 0 };
-      const balanceAfter = summary.credits - summary.debits + split.sellerEarningAmount;
-
-      await WalletTransaction.create({
-        userId: listing.sellerId,
-        type: "marketplace_sale_credit",
-        direction: "credit",
-        amountInr: split.sellerEarningAmount,
-        sourceType: PURCHASE_TYPES.MARKETPLACE,
-        sourceId: purchase._id,
-        balanceAfter,
-        note: `Marketplace sale credit for ${listing.title}`,
-      });
-    }
+    await ensureSellerCredit(listing, purchase, split);
 
     payment.status = PAYMENT_STATUS.PAID;
     payment.unlockStatus = "unlocked";
@@ -646,6 +982,135 @@ export const paymentService = {
     return {
       payment: serializePayment(payment),
       purchase: purchaseService.serializePurchase(populatedPurchase),
+    };
+  },
+
+  async verifyPublicMarketplacePayment(payload) {
+    const payment = await findPendingPaymentForOrder(payload.orderId);
+
+    if (payment.buyerMode !== "guest") {
+      throw new ApiError(403, "This payment order belongs to an authenticated account.");
+    }
+
+    const listing = await findPurchasableListing(payment.listingId);
+
+    let purchase = await Purchase.findOne({
+      paymentId: payment._id,
+      status: "completed",
+      buyerAccessState: "granted",
+    })
+      .populate("listingId", "title slug taxonomy studyMetadata priceInr")
+      .populate("sellerId", "name sellerProfile");
+
+    if (purchase && payment.status === PAYMENT_STATUS.PAID) {
+      const guestAccess = await issueGuestPurchaseAccess(purchase);
+      return {
+        payment: serializePayment(payment),
+        purchase: purchaseService.serializePurchase(purchase),
+        guestAccess,
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING && !purchase) {
+      throw new ApiError(409, "This marketplace payment is no longer pending verification.");
+    }
+
+    const signatureIsValid = getPaymentClient().verifySignature({
+      orderId: payload.orderId,
+      paymentId: payload.paymentId,
+      signature: payload.signature,
+    });
+
+    if (!signatureIsValid) {
+      payment.status = PAYMENT_STATUS.FAILED;
+      payment.failedAt = new Date();
+      payment.failureReason = "Razorpay signature verification failed.";
+      payment.verificationPayload = payload;
+      await payment.save();
+      await notificationService.notifyAdmins({
+        type: "admin_alert",
+        title: "Guest marketplace payment verification failed",
+        message: "A guest marketplace payment failed signature verification and may need review.",
+        actionUrl: "/admin/commerce",
+        metadata: {
+          paymentId: payment._id.toString(),
+          listingId: payment.listingId?.toString?.() || null,
+          guestBuyerName: payment.guestBuyerName || "",
+        },
+      });
+      throw new ApiError(400, "Marketplace payment verification failed.");
+    }
+
+    await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
+
+    const split = calculateMarketplaceSplit(payment.amountInr);
+    const isNewPurchase = !purchase;
+
+    if (!purchase) {
+      purchase = await Purchase.create({
+        buyerId: payment.userId || new mongoose.Types.ObjectId(),
+        buyerMode: "guest",
+        guestBuyerName: payment.guestBuyerName,
+        sellerId: listing.sellerId,
+        purchaseType: PURCHASE_TYPES.MARKETPLACE,
+        targetId: listing._id,
+        listingId: listing._id,
+        generatedPdfId: listing.sourcePdfId?._id || null,
+        adminUploadId: listing.adminUploadId?._id || null,
+        paymentId: payment._id,
+        amountInr: payment.amountInr,
+        currency: payment.currency,
+        paymentStatus: PAYMENT_STATUS.PAID,
+        status: "completed",
+        adminCommissionAmount: split.adminCommissionAmount,
+        sellerEarningAmount: split.sellerEarningAmount,
+        buyerAccessState: "granted",
+        accessGrantedAt: new Date(),
+      });
+    }
+
+    await ensureSellerCredit(listing, purchase, split);
+
+    payment.status = PAYMENT_STATUS.PAID;
+    payment.unlockStatus = "unlocked";
+    payment.buyerAccessGranted = true;
+    payment.razorpayPaymentId = payload.paymentId;
+    payment.razorpaySignature = payload.signature;
+    payment.verifiedAt = new Date();
+    payment.failureReason = "";
+    payment.verificationPayload = payload;
+    payment.purchaseId = purchase._id;
+    payment.adminCommissionAmount = split.adminCommissionAmount;
+    payment.sellerEarningAmount = split.sellerEarningAmount;
+    await payment.save();
+
+    listing.salesCount = (listing.salesCount || 0) + (isNewPurchase ? 1 : 0);
+    await listing.save();
+
+    const populatedPurchase = await Purchase.findById(purchase._id)
+      .populate("listingId", "title slug taxonomy studyMetadata priceInr")
+      .populate("sellerId", "name sellerProfile");
+
+    const guestAccess = await issueGuestPurchaseAccess(populatedPurchase);
+
+    await notificationService.create({
+      userId: listing.sellerId,
+      type: "sale_credit_received",
+      title: "Marketplace sale credited",
+      message: `A guest sale for "${listing.title}" added Rs. ${split.sellerEarningAmount} to your wallet.`,
+      actionUrl: "/app/wallet",
+      metadata: {
+        purchaseId: purchase._id.toString(),
+        listingId: listing._id.toString(),
+        amountInr: split.sellerEarningAmount,
+        buyerMode: "guest",
+      },
+    });
+
+    return {
+      payment: serializePayment(payment),
+      purchase: purchaseService.serializePurchase(populatedPurchase),
+      guestAccess,
     };
   },
 };

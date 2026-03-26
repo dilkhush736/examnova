@@ -3,7 +3,9 @@ import { COLLECTION_NAMES } from "../constants/db.constants.js";
 
 const paymentSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+    buyerMode: { type: String, default: "account", index: true },
+    guestBuyerName: { type: String, default: "", trim: true },
     purpose: { type: String, required: true, index: true },
     contextType: { type: String, default: "private_pdf", index: true },
     targetId: { type: mongoose.Schema.Types.ObjectId, index: true },
@@ -37,5 +39,6 @@ const paymentSchema = new mongoose.Schema(
 );
 
 paymentSchema.index({ userId: 1, generatedPdfId: 1, status: 1 });
+paymentSchema.index({ buyerMode: 1, listingId: 1, status: 1 });
 
 export const Payment = mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

@@ -3,7 +3,9 @@ import { COLLECTION_NAMES } from "../constants/db.constants.js";
 
 const purchaseSchema = new mongoose.Schema(
   {
-    buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+    buyerMode: { type: String, default: "account", index: true },
+    guestBuyerName: { type: String, default: "", trim: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
     purchaseType: { type: String, required: true, index: true },
     targetId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
@@ -19,6 +21,8 @@ const purchaseSchema = new mongoose.Schema(
     sellerEarningAmount: { type: Number, default: 0 },
     buyerAccessState: { type: String, default: "granted", index: true },
     accessGrantedAt: { type: Date, default: Date.now },
+    guestAccessTokenHash: { type: String, default: "", index: true, sparse: true },
+    guestAccessExpiresAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -26,7 +30,19 @@ const purchaseSchema = new mongoose.Schema(
   },
 );
 
-purchaseSchema.index({ buyerId: 1, purchaseType: 1, targetId: 1 }, { unique: true });
-purchaseSchema.index({ buyerId: 1, listingId: 1 }, { unique: true, sparse: true });
+purchaseSchema.index(
+  { buyerId: 1, purchaseType: 1, targetId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { buyerId: { $exists: true, $type: "objectId" } },
+  },
+);
+purchaseSchema.index(
+  { buyerId: 1, listingId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { buyerId: { $exists: true, $type: "objectId" } },
+  },
+);
 
 export const Purchase = mongoose.models.Purchase || mongoose.model("Purchase", purchaseSchema);

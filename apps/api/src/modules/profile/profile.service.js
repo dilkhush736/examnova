@@ -1,3 +1,7 @@
+import { DEVELOPER_MODE_UNLOCK_PRICE, PLATFORM_MODES } from "../../constants/app.constants.js";
+import { ApiError } from "../../utils/ApiError.js";
+import { getModeAccessSnapshot, isDeveloperUnlocked } from "../../utils/userMode.js";
+
 export const profileService = {
   getProfile(user) {
     return {
@@ -22,6 +26,7 @@ export const profileService = {
         productUpdates: true,
         marketplaceAlerts: true,
       },
+      modeAccess: getModeAccessSnapshot(user),
       sellerProfile: user.sellerProfile || null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -45,10 +50,33 @@ export const profileService = {
   },
 
   async updateSettings(user, payload) {
+    const requestedMode = payload.currentMode || user.modeAccess?.currentMode || PLATFORM_MODES.PROFESSIONAL;
+
+    if (
+      requestedMode === PLATFORM_MODES.DEVELOPER &&
+      user.role !== "admin" &&
+      !isDeveloperUnlocked(user)
+    ) {
+      throw new ApiError(403, "Unlock Developer Mode before switching to it.", {
+        requiredMode: PLATFORM_MODES.DEVELOPER,
+        developerUnlockAmountInr:
+          user.modeAccess?.developerUnlockAmountInr || DEVELOPER_MODE_UNLOCK_PRICE,
+      });
+    }
+
     user.preferences = {
       emailNotifications: Boolean(payload.emailNotifications),
       productUpdates: Boolean(payload.productUpdates),
       marketplaceAlerts: Boolean(payload.marketplaceAlerts),
+    };
+    user.modeAccess = {
+      ...(user.modeAccess || {}),
+      currentMode:
+        requestedMode === PLATFORM_MODES.DEVELOPER
+          ? PLATFORM_MODES.DEVELOPER
+          : PLATFORM_MODES.PROFESSIONAL,
+      developerUnlockAmountInr:
+        Number(user.modeAccess?.developerUnlockAmountInr) || DEVELOPER_MODE_UNLOCK_PRICE,
     };
 
     await user.save();

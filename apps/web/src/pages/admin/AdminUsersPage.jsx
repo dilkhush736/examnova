@@ -129,7 +129,9 @@ export function AdminUsersPage() {
             <div className="info-grid">
               <div><span className="info-label">Email</span><strong>{selectedUser.user.email}</strong></div>
               <div><span className="info-label">Role</span><strong>{selectedUser.user.role}</strong></div>
+              <div><span className="info-label">Mode</span><strong>{selectedUser.user.modeAccess?.currentMode || "professional"}</strong></div>
               <div><span className="info-label">Status</span><strong>{selectedUser.user.status}</strong></div>
+              <div><span className="info-label">Developer unlocked</span><strong>{selectedUser.user.modeAccess?.developerUnlocked ? "Yes" : "No"}</strong></div>
               <div><span className="info-label">Generated PDFs</span><strong>{selectedUser.stats.generatedPdfs}</strong></div>
               <div><span className="info-label">Listings</span><strong>{selectedUser.stats.listings}</strong></div>
               <div><span className="info-label">Purchases</span><strong>{selectedUser.stats.purchases}</strong></div>

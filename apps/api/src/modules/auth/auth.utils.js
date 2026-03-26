@@ -1,4 +1,5 @@
 import { env } from "../../config/index.js";
+import { getModeAccessSnapshot } from "../../utils/userMode.js";
 
 export function sanitizeUser(user) {
   return {
@@ -9,6 +10,7 @@ export function sanitizeUser(user) {
     isEmailVerified: user.isEmailVerified,
     isBlocked: Boolean(user.isBlocked || user.status === "blocked"),
     status: user.status,
+    modeAccess: getModeAccessSnapshot(user),
     createdAt: user.createdAt,
   };
 }

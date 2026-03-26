@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { aiController } from "./ai.controller.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { requireAuth } from "../../middleware/auth.middleware.js";
+import { requireAuth, requireProfessionalMode } from "../../middleware/auth.middleware.js";
 import { aiActionRateLimiter } from "../../middleware/index.js";
 import {
   validateQuestionDetectionRequest,
@@ -13,6 +13,7 @@ const router = Router();
 router.post(
   "/documents/:documentId/detect",
   requireAuth,
+  requireProfessionalMode,
   aiActionRateLimiter,
   validateQuestionDetectionRequest,
   asyncHandler(aiController.detectQuestions),
@@ -20,11 +21,13 @@ router.post(
 router.get(
   "/documents/:documentId/questions",
   requireAuth,
+  requireProfessionalMode,
   asyncHandler(aiController.getDetectedQuestions),
 );
 router.patch(
   "/documents/:documentId/questions/selection",
   requireAuth,
+  requireProfessionalMode,
   aiActionRateLimiter,
   validateQuestionSelectionUpdate,
   asyncHandler(aiController.updateQuestionSelections),
@@ -32,6 +35,7 @@ router.patch(
 router.delete(
   "/documents/:documentId/questions",
   requireAuth,
+  requireProfessionalMode,
   asyncHandler(aiController.resetDetectedQuestions),
 );
 

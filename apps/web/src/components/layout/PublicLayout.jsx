@@ -19,20 +19,19 @@ export function PublicLayout() {
               ExamNova AI
             </Link>
             <p className="brand-subcopy">
-              Buy, upload, generate, and sell premium study PDFs from one AI-powered marketplace platform.
+              Start with the marketplace, find the right PDF fast, and then move into your workspace only when you need it.
             </p>
           </div>
         </div>
         <nav className="nav-links nav nav-pills">
-          <Link className="nav-link-pill" to="/"><i className="bi bi-house-door" />Home</Link>
-          <Link className="nav-link-pill" to="/marketplace"><i className="bi bi-grid-1x2" />Marketplace</Link>
+          <Link className="nav-link-pill" to="/"><i className="bi bi-grid-1x2" />Marketplace</Link>
           <Link className="nav-link-pill" to="/upcoming"><i className="bi bi-hourglass-split" />Upcoming</Link>
           <Link className="nav-link-pill" to="/resources"><i className="bi bi-journal-richtext" />Resources</Link>
           <Link className="nav-link-pill" to="/faq"><i className="bi bi-patch-question" />FAQ</Link>
           {isAuthenticated ? (
             <Link className="nav-link-pill nav-cta" to={role === "admin" ? "/admin/profile" : "/app/profile"}>
               <i className="bi bi-person-badge" />
-              {role === "admin" ? "Admin center" : "My account"}
+              {role === "admin" ? "Admin center" : "Open workspace"}
             </Link>
           ) : (
             <Link className="nav-link-pill nav-cta" to="/login">
@@ -50,12 +49,12 @@ export function PublicLayout() {
           <section className="footer-block">
             <h3>ExamNova AI</h3>
             <p className="support-copy">
-              A cinematic AI workspace for exam prep, premium PDFs, marketplace commerce, and release discovery.
+              Marketplace-first exam prep for students who want to discover, buy, upload, and manage PDFs without a confusing first step.
             </p>
             <div className="footer-stat-row">
-              <span className="footer-stat"><i className="bi bi-cpu" />AI workflow</span>
-              <span className="footer-stat"><i className="bi bi-file-earmark-pdf" />Compact render</span>
-              <span className="footer-stat"><i className="bi bi-shop" />Marketplace ready</span>
+              <span className="footer-stat"><i className="bi bi-shop" />Marketplace first</span>
+              <span className="footer-stat"><i className="bi bi-file-earmark-pdf" />Ready-made PDFs</span>
+              <span className="footer-stat"><i className="bi bi-cloud-arrow-up" />Student uploads</span>
             </div>
           </section>
           <section className="footer-block">
