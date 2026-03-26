@@ -39,6 +39,16 @@
   position: relative;
 }
 
+.public-shell-wide {
+  width: min(100%, calc(100vw - 12px));
+  padding: 0 6px 24px;
+}
+
+.page-shell-wide {
+  margin-top: 10px;
+  gap: 12px;
+}
+
 .public-utility-bar,
 .topbar,
 .footer-bar {

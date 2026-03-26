@@ -2,6 +2,7 @@ import {
   AdminUploadedPdf,
   AuditLog,
   MarketplaceListing,
+  Purchase,
   UpcomingLockedPdf,
 } from "../../models/index.js";
 import { createStorageClient } from "../../lib/index.js";
@@ -355,6 +356,54 @@ export const adminContentService = {
     });
 
     return serializeAdminUpload(record);
+  },
+
+  async deleteAdminUpload(uploadId, actor, req) {
+    const record = await AdminUploadedPdf.findById(uploadId).populate("adminId", "name");
+    if (!record) {
+      throw new ApiError(404, "Admin-uploaded PDF not found.");
+    }
+
+    const completedPurchases = await Purchase.countDocuments({
+      adminUploadId: record._id,
+      status: "completed",
+      buyerAccessState: "granted",
+    });
+
+    if (completedPurchases > 0) {
+      throw new ApiError(
+        409,
+        "This PDF already has buyer downloads. Replace or unlist it instead of deleting the file.",
+      );
+    }
+
+    try {
+      if (record.storageKey) {
+        await storageClient.remove(record.storageKey);
+      }
+    } catch {
+      // Continue cleanup even if the old file is already missing.
+    }
+
+    if (record.listingId) {
+      await MarketplaceListing.findByIdAndDelete(record.listingId);
+    }
+
+    await UpcomingLockedPdf.deleteMany({
+      $or: [{ adminUploadId: record._id }, { listingId: record.listingId || null }],
+    });
+
+    await AdminUploadedPdf.findByIdAndDelete(record._id);
+
+    await createAuditLog("admin_upload_deleted", actor, req, "AdminUploadedPdf", record._id.toString(), {
+      title: record.title,
+      listingId: record.listingId?.toString?.() || "",
+    });
+
+    return {
+      id: record._id.toString(),
+      title: record.title,
+    };
   },
 
   async listUpcomingItems(query = {}) {

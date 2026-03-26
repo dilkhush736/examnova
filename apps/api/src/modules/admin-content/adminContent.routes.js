@@ -29,6 +29,7 @@ router.patch(
   validateAdminUploadUpdate,
   asyncHandler(adminContentController.updateAdminUpload),
 );
+router.delete("/uploads/:id", asyncHandler(adminContentController.deleteAdminUpload));
 router.get("/upcoming", asyncHandler(adminContentController.listUpcomingItems));
 router.post(
   "/upcoming",

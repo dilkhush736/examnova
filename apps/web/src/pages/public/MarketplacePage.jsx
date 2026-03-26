@@ -79,6 +79,7 @@ export function MarketplacePage() {
   const totalLiveListings = result.pagination?.total || result.items.length;
   const upcomingCount = result.upcomingItems?.length || 0;
   const totalListings = totalLiveListings + upcomingCount;
+  const marketplaceCards = [...result.items, ...(result.upcomingItems || [])];
   const hasActiveFilters = Object.entries(filters).some(([key, value]) =>
     key === "sort" ? value !== DEFAULT_FILTERS.sort : Boolean(value),
   );
@@ -105,7 +106,7 @@ export function MarketplacePage() {
       <SeoHead {...seoPayload} />
 
       <section className="stack-section simple-marketplace-page">
-        <div className="simple-marketplace-header">
+        <div className="simple-marketplace-header compact">
           <p className="eyebrow">PDF Marketplace</p>
           <h1>Download Notes</h1>
           <p className="support-copy">
@@ -203,37 +204,22 @@ export function MarketplacePage() {
 
         {isLoading ? <LoadingCard message="Loading PDFs..." /> : null}
 
-        {!isLoading && result.items.length ? (
+        {!isLoading && marketplaceCards.length ? (
           <section className="stack-section">
             <SectionHeader
-              eyebrow="Available now"
-              title={`${totalLiveListings} ready to download`}
-              description="Click any Download PDF button to open that one PDF on a clean single-detail page."
+              eyebrow="All PDFs"
+              title={`${totalListings} card${totalListings === 1 ? "" : "s"} in one grid`}
+              description="Live and upcoming PDFs stay together in the same line-based grid."
             />
             <div className="marketplace-grid simple-marketplace-grid">
-              {result.items.map((listing) => (
+              {marketplaceCards.map((listing) => (
                 <MarketplaceListingCard key={listing.id} listing={listing} />
               ))}
             </div>
           </section>
         ) : null}
 
-        {!isLoading && result.upcomingItems?.length ? (
-          <section className="stack-section">
-            <SectionHeader
-              eyebrow="Upcoming PDFs"
-              title={`${upcomingCount} scheduled release${upcomingCount === 1 ? "" : "s"}`}
-              description="These cards stay visible with a live countdown, but download remains locked until the release date and time arrives."
-            />
-            <div className="marketplace-grid simple-marketplace-grid">
-              {result.upcomingItems.map((listing) => (
-                <MarketplaceListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {!isLoading && !result.items.length && !result.upcomingItems?.length ? (
+        {!isLoading && !marketplaceCards.length ? (
           <EmptyStateCard
             title="No PDFs match these filters yet"
             description={

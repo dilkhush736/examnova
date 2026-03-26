@@ -19,6 +19,10 @@ export const adminContentController = {
     const item = await adminContentService.updateAdminUpload(req.params.id, req.user, req.body, req, req.file);
     return sendSuccess(res, { item }, "Admin uploaded PDF updated successfully.");
   },
+  async deleteAdminUpload(req, res) {
+    const item = await adminContentService.deleteAdminUpload(req.params.id, req.user, req);
+    return sendSuccess(res, { item }, "Admin uploaded PDF deleted successfully.");
+  },
   async listUpcomingItems(req, res) {
     const items = await adminContentService.listUpcomingItems(req.query);
     return sendSuccess(res, { items }, "Upcoming locked PDFs fetched successfully.");

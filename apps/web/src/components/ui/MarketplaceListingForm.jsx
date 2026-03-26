@@ -7,7 +7,6 @@ import {
 } from "../../features/academic/academicTaxonomy.js";
 import { toDateTimeLocalValue } from "../../utils/marketplaceAvailability.js";
 import { AcademicTaxonomyFieldset } from "./AcademicTaxonomyFieldset.jsx";
-import { StudyMetadataFieldset } from "./StudyMetadataFieldset.jsx";
 
 function createBlankMarketplaceForm() {
   return {
@@ -150,7 +149,7 @@ export function MarketplaceListingForm({
             {selectedEligiblePdf.taxonomy?.subject ? <span>{selectedEligiblePdf.taxonomy.subject}</span> : null}
           </div>
           <p className="support-copy">
-            ExamNova will prefill title suggestions and academic taxonomy from this source. You can still refine the buyer-facing title, description, price, and optional study tags below.
+            ExamNova will prefill title suggestions and academic taxonomy from this source. You can still refine the title, price, release timing, and seal below.
           </p>
         </article>
       ) : null}
@@ -202,39 +201,15 @@ export function MarketplaceListingForm({
         </label>
       </div>
 
-      <label className="field">
-        <span>Description</span>
-        <textarea className="input textarea" onChange={(event) => onChange("description", event.target.value)} placeholder="Tell buyers what they will get, which exam it helps with, and why it is useful." value={form.description} />
-      </label>
-
       <AcademicTaxonomyFieldset
         description="These fields are the public marketplace filters students actually browse. Keeping them normalized makes your listing easier to find."
         onChange={onChange}
         values={form}
       />
 
-      <StudyMetadataFieldset onChange={onChange} values={form} />
-
-      <details className="guided-disclosure">
-        <summary>Optional marketplace polish</summary>
-        <div className="stack-section">
-          <label className="field">
-            <span>Tags</span>
-            <input
-              className="input"
-              onChange={(event) => onChange("tags", event.target.value)}
-              placeholder="os, unit 3, revision, viva"
-              value={form.tags}
-            />
-          </label>
-          <p className="support-copy">
-            Use short comma-separated tags only when they genuinely help search clarity. Avoid repeating branch, semester, or university because those are already controlled above.
-          </p>
-          <p className="support-copy">
-            If you set a future go-live date, students will see this PDF as upcoming with a live countdown, but download stays locked until that exact date and time.
-          </p>
-        </div>
-      </details>
+      <p className="support-copy">
+        If you set a future go-live date, students will see this PDF as upcoming with a live countdown, but download stays locked until that exact date and time.
+      </p>
 
       <div className="hero-actions">
         <button className="button primary" disabled={submitDisabled} type="submit">

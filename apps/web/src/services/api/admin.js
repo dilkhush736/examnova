@@ -90,6 +90,13 @@ export function updateAdminUpload(accessToken, uploadId, payload) {
   });
 }
 
+export function deleteAdminUpload(accessToken, uploadId) {
+  return apiRequest(`/admin-content/uploads/${uploadId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function fetchAdminUpcoming(accessToken) {
   return apiRequest("/admin-content/upcoming", {
     headers: authHeaders(accessToken),

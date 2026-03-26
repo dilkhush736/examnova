@@ -6,11 +6,12 @@ export function PublicLayout() {
   const { isAuthenticated, role } = useAuth();
   const location = useLocation();
   const isPdfDetailPage = location.pathname.startsWith("/pdf/");
+  const isMarketplacePage = location.pathname === "/" || location.pathname === "/marketplace";
   const workspaceHref = isAuthenticated ? (role === "admin" ? "/admin/profile" : "/app/profile") : "/login";
   const workspaceLabel = isAuthenticated ? (role === "admin" ? "Admin center" : "My account") : "Login";
 
   return (
-    <div className="site-shell public-shell">
+    <div className={`site-shell public-shell${isMarketplacePage ? " public-shell-wide" : ""}`}>
       <SeoHead title="ExamNova AI" description="AI-powered exam preparation platform and PDF marketplace." />
       <header className="topbar public-navbar simple-public-navbar">
         <div className="topbar-brand-wrap">
@@ -38,7 +39,7 @@ export function PublicLayout() {
           </Link>
         </nav>
       </header>
-      <main className="page-shell">
+      <main className={`page-shell${isMarketplacePage ? " page-shell-wide" : ""}`}>
         <Outlet />
       </main>
       {!isPdfDetailPage ? (

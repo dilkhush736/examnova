@@ -3,7 +3,6 @@ import { AcademicTaxonomyFieldset } from "../../components/ui/AcademicTaxonomyFi
 import { LoadingCard } from "../../components/ui/LoadingCard.jsx";
 import { SectionHeader } from "../../components/ui/SectionHeader.jsx";
 import { StatusBadge } from "../../components/ui/StatusBadge.jsx";
-import { StudyMetadataFieldset } from "../../components/ui/StudyMetadataFieldset.jsx";
 import {
   DEFAULT_UNIVERSITY,
 } from "../../features/academic/academicTaxonomy.js";
@@ -14,6 +13,7 @@ import {
 import { useAuth } from "../../hooks/useAuth.js";
 import {
   createAdminUpload,
+  deleteAdminUpload,
   fetchAdminUploads,
   updateAdminUpload,
 } from "../../services/api/index.js";
@@ -146,6 +146,26 @@ export function AdminUploadsPage() {
     setForm(createBlankAdminUploadForm());
   }
 
+  async function handleDelete(item) {
+    const confirmed = window.confirm(`Delete "${item.title}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setFeedback({ type: "", message: "" });
+
+    try {
+      await deleteAdminUpload(accessToken, item.id);
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      if (editingId === item.id) {
+        resetForm();
+      }
+      setFeedback({ type: "success", message: "Admin PDF deleted successfully." });
+    } catch (error) {
+      setFeedback({ type: "error", message: error.message || "Unable to delete admin upload." });
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setIsSaving(true);
@@ -238,7 +258,6 @@ export function AdminUploadsPage() {
             </p>
           ) : null}
           <label className="field"><span>Title</span><input className="input" onChange={(event) => handleChange("title", event.target.value)} placeholder="Example: DBMS End-Sem Important Questions" required value={form.title} /></label>
-          <label className="field"><span>Description</span><textarea className="input" onChange={(event) => handleChange("description", event.target.value)} placeholder="Explain what this PDF covers and why a student should buy it." rows={4} value={form.description} /></label>
           <div className="two-column-grid compact">
             <label className="field"><span>Price (Rs.)</span><input className="input" max={MARKETPLACE_PRICE_RANGE.max} min={MARKETPLACE_PRICE_RANGE.min} onChange={(event) => handleChange("priceInr", event.target.value)} type="number" value={form.priceInr} /></label>
             <label className="field">
@@ -270,11 +289,9 @@ export function AdminUploadsPage() {
             onChange={handleChange}
             values={form}
           />
-          <StudyMetadataFieldset onChange={handleChange} values={form} />
           <details className="guided-disclosure" open={Boolean(editingId)}>
             <summary>Optional marketplace polish</summary>
             <div className="stack-section">
-              <label className="field"><span>Tags</span><input className="input" onChange={(event) => handleChange("tags", event.target.value)} placeholder="exam, important, revision" value={form.tags} /></label>
               <label className="field"><span>Cover image URL</span><input className="input" onChange={(event) => handleChange("coverImageUrl", event.target.value)} value={form.coverImageUrl} /></label>
               <label className="field"><span>SEO title</span><input className="input" onChange={(event) => handleChange("seoTitle", event.target.value)} value={form.seoTitle} /></label>
               <label className="field"><span>SEO description</span><textarea className="input" onChange={(event) => handleChange("seoDescription", event.target.value)} rows={3} value={form.seoDescription} /></label>
@@ -302,9 +319,6 @@ export function AdminUploadsPage() {
             {items.map((item) => (
               <article className="activity-item" key={item.id}>
                 <strong>{item.title}</strong>
-                <span className="support-copy">
-                  {item.taxonomy?.subject || "Marketplace PDF"} - Rs. {item.priceInr}
-                </span>
                 <div className="marketplace-taxonomy">
                   {item.taxonomy?.university ? <span>{item.taxonomy.university}</span> : null}
                   {item.taxonomy?.branch ? <span>{item.taxonomy.branch}</span> : null}
@@ -326,6 +340,9 @@ export function AdminUploadsPage() {
                 <div className="hero-actions">
                   <button className="button secondary" onClick={() => startEditing(item)} type="button">
                     Edit metadata
+                  </button>
+                  <button className="button ghost" onClick={() => handleDelete(item)} type="button">
+                    Delete
                   </button>
                 </div>
               </article>
