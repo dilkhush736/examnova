@@ -3,6 +3,20 @@ import { ApiError } from "../../utils/ApiError.js";
 import { walletService } from "../wallet/wallet.service.js";
 import { notificationService } from "../../services/notification.service.js";
 
+function buildPayoutSummary(record) {
+  const payoutDetails = record?.payoutDetails || {};
+  const accountHolderName = payoutDetails.accountHolderName || "";
+
+  if (record?.payoutMethod === "bank_account") {
+    const parts = [accountHolderName, record.accountReference || "", payoutDetails.ifscCode || ""].filter(Boolean);
+    return parts.join(" - ");
+  }
+
+  return [accountHolderName, record?.accountReference || payoutDetails.upiId || ""]
+    .filter(Boolean)
+    .join(" - ");
+}
+
 function serializeWithdrawal(record) {
   return {
     id: record._id.toString(),
@@ -10,9 +24,10 @@ function serializeWithdrawal(record) {
     amountInr: record.amountInr,
     currency: record.currency || "INR",
     status: record.status,
-    payoutMethod: record.payoutMethod || "manual",
+    payoutMethod: record.payoutMethod || "upi",
     accountReference: record.accountReference || "",
     payoutDetails: record.payoutDetails || {},
+    payoutSummary: buildPayoutSummary(record),
     userNote: record.userNote || "",
     adminNote: record.adminNote || "",
     payoutReference: record.payoutReference || "",
@@ -26,7 +41,7 @@ function serializeWithdrawal(record) {
   };
 }
 
-async function createLedgerEntry({ userId, amountInr, direction, sourceId, type, note }) {
+async function createLedgerEntry({ userId, amountInr, direction, sourceId, type, note, metadata = {} }) {
   const snapshot = await walletService.getWalletSnapshot(userId);
   const nextBalance =
     direction === "credit"
@@ -44,6 +59,7 @@ async function createLedgerEntry({ userId, amountInr, direction, sourceId, type,
     balanceAfter: nextBalance,
     note,
     status: "posted",
+    metadata,
   });
 }
 
@@ -87,7 +103,7 @@ export const withdrawalService = {
       amountInr,
       currency: "INR",
       status: "pending",
-      payoutMethod: payload.payoutMethod || "manual",
+      payoutMethod: payload.payoutMethod || "upi",
       accountReference: payload.accountReference || "",
       payoutDetails: payload.payoutDetails || {},
       userNote: payload.userNote || "",
@@ -100,6 +116,10 @@ export const withdrawalService = {
       sourceId: withdrawal._id,
       type: "withdrawal_hold",
       note: `Withdrawal request hold for Rs. ${amountInr}`,
+      metadata: {
+        payoutMethod: withdrawal.payoutMethod,
+        accountReference: withdrawal.accountReference,
+      },
     });
 
     withdrawal.holdTransactionId = holdTransaction._id;
@@ -149,6 +169,11 @@ export const withdrawalService = {
         sourceId: withdrawal._id,
         type: "withdrawal_release",
         note: `Withdrawal request release for Rs. ${withdrawal.amountInr}`,
+        metadata: {
+          payoutMethod: withdrawal.payoutMethod,
+          accountReference: withdrawal.accountReference,
+          releaseReason: "seller_cancelled",
+        },
       });
       withdrawal.releaseTransactionId = releaseTransaction._id;
     }

@@ -116,8 +116,17 @@ function serializeWithdrawal(item) {
     amountInr: item.amountInr,
     currency: item.currency || "INR",
     status: item.status,
-    payoutMethod: item.payoutMethod || "manual",
+    payoutMethod: item.payoutMethod || "upi",
     accountReference: item.accountReference || "",
+    payoutDetails: item.payoutDetails || {},
+    payoutSummary:
+      item.payoutMethod === "bank_account"
+        ? [item.payoutDetails?.accountHolderName || "", item.accountReference || "", item.payoutDetails?.ifscCode || ""]
+          .filter(Boolean)
+          .join(" - ")
+        : [item.payoutDetails?.accountHolderName || "", item.accountReference || item.payoutDetails?.upiId || ""]
+          .filter(Boolean)
+          .join(" - "),
     userNote: item.userNote || "",
     adminNote: item.adminNote || "",
     payoutReference: item.payoutReference || "",
@@ -162,6 +171,11 @@ async function releaseWithdrawalHold(withdrawal) {
     balanceAfter: snapshot.availableBalance + withdrawal.amountInr,
     note: `Withdrawal rejection release for Rs. ${withdrawal.amountInr}`,
     status: "posted",
+    metadata: {
+      payoutMethod: withdrawal.payoutMethod || "upi",
+      accountReference: withdrawal.accountReference || "",
+      releaseReason: "admin_rejected",
+    },
   });
 
   withdrawal.releaseTransactionId = releaseTransaction._id;

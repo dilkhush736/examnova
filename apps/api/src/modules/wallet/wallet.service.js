@@ -8,11 +8,13 @@ function serializeTransaction(record) {
     type: record.type,
     direction: record.direction,
     amountInr: record.amountInr,
+    currency: record.currency || "INR",
     sourceType: record.sourceType,
     sourceId: record.sourceId?.toString?.() || null,
     balanceAfter: record.balanceAfter || 0,
     status: record.status,
     note: record.note || "",
+    metadata: record.metadata || {},
     createdAt: record.createdAt,
   };
 }
@@ -56,6 +58,7 @@ export const walletService = {
       totalDebits: summary.debits,
       lifetimeEarnings,
       totalWithdrawn,
+      sellerRevenueSharePercent: 70,
       currency: "INR",
     };
   },

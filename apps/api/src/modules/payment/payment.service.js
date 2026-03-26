@@ -158,12 +158,30 @@ function serializePayment(record) {
   };
 }
 
-function calculateMarketplaceSplit(amountInr) {
+function calculateMarketplaceSplit(listing, amountInr) {
+  const numericAmount = Number(amountInr || 0);
+
+  if (listing?.sourceType !== "generated_pdf") {
+    return {
+      qualifiesForSellerWallet: false,
+      sellerSharePercent: 0,
+      adminSharePercent: 100,
+      sellerEarningAmount: 0,
+      adminCommissionAmount: Number(numericAmount.toFixed(2)),
+    };
+  }
+
   const sellerEarningAmount = Number(
-    ((amountInr * MARKETPLACE_SPLIT.SELLER_PERCENT) / 100).toFixed(2),
+    ((numericAmount * MARKETPLACE_SPLIT.SELLER_PERCENT) / 100).toFixed(2),
   );
-  const adminCommissionAmount = Number((amountInr - sellerEarningAmount).toFixed(2));
-  return { sellerEarningAmount, adminCommissionAmount };
+  const adminCommissionAmount = Number((numericAmount - sellerEarningAmount).toFixed(2));
+  return {
+    qualifiesForSellerWallet: sellerEarningAmount > 0,
+    sellerSharePercent: MARKETPLACE_SPLIT.SELLER_PERCENT,
+    adminSharePercent: MARKETPLACE_SPLIT.ADMIN_PERCENT,
+    sellerEarningAmount,
+    adminCommissionAmount,
+  };
 }
 
 async function findOwnedGeneration(userId, generationId) {
@@ -254,6 +272,10 @@ async function issueGuestPurchaseAccess(purchase) {
 }
 
 async function ensureSellerCredit(listing, purchase, split) {
+  if (!split.qualifiesForSellerWallet || !listing?.sellerId) {
+    return;
+  }
+
   const existingSellerCredit = await WalletTransaction.findOne({
     userId: listing.sellerId,
     sourceType: PURCHASE_TYPES.MARKETPLACE,
@@ -266,7 +288,7 @@ async function ensureSellerCredit(listing, purchase, split) {
   }
 
   const summaryRows = await WalletTransaction.aggregate([
-    { $match: { userId: listing.sellerId } },
+    { $match: { userId: listing.sellerId, status: "posted" } },
     {
       $group: {
         _id: null,
@@ -291,6 +313,14 @@ async function ensureSellerCredit(listing, purchase, split) {
     sourceId: purchase._id,
     balanceAfter,
     note: `Marketplace sale credit for ${listing.title}`,
+    metadata: {
+      listingId: listing._id?.toString?.() || String(listing._id || ""),
+      listingTitle: listing.title,
+      grossAmountInr: purchase.amountInr,
+      sellerSharePercent: split.sellerSharePercent,
+      adminSharePercent: split.adminSharePercent,
+      sourceType: listing.sourceType || "generated_pdf",
+    },
   });
 }
 
@@ -909,7 +939,7 @@ export const paymentService = {
 
     await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
 
-    const split = calculateMarketplaceSplit(payment.amountInr);
+    const split = calculateMarketplaceSplit(listing, payment.amountInr);
     let purchase = existingPurchase;
 
     if (!purchase) {
@@ -966,18 +996,21 @@ export const paymentService = {
         listingId: listing._id.toString(),
       },
     });
-    await notificationService.create({
-      userId: listing.sellerId,
-      type: "sale_credit_received",
-      title: "Marketplace sale credited",
-      message: `A sale for "${listing.title}" added Rs. ${split.sellerEarningAmount} to your wallet.`,
-      actionUrl: "/app/wallet",
-      metadata: {
-        purchaseId: purchase._id.toString(),
-        listingId: listing._id.toString(),
-        amountInr: split.sellerEarningAmount,
-      },
-    });
+    if (split.qualifiesForSellerWallet) {
+      await notificationService.create({
+        userId: listing.sellerId,
+        type: "sale_credit_received",
+        title: "Marketplace sale credited",
+        message: `A sale for "${listing.title}" added Rs. ${split.sellerEarningAmount} to your wallet.`,
+        actionUrl: "/app/wallet",
+        metadata: {
+          purchaseId: purchase._id.toString(),
+          listingId: listing._id.toString(),
+          amountInr: split.sellerEarningAmount,
+          sellerSharePercent: split.sellerSharePercent,
+        },
+      });
+    }
 
     return {
       payment: serializePayment(payment),
@@ -1043,7 +1076,7 @@ export const paymentService = {
 
     await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
 
-    const split = calculateMarketplaceSplit(payment.amountInr);
+    const split = calculateMarketplaceSplit(listing, payment.amountInr);
     const isNewPurchase = !purchase;
 
     if (!purchase) {
@@ -1093,19 +1126,22 @@ export const paymentService = {
 
     const guestAccess = await issueGuestPurchaseAccess(populatedPurchase);
 
-    await notificationService.create({
-      userId: listing.sellerId,
-      type: "sale_credit_received",
-      title: "Marketplace sale credited",
-      message: `A guest sale for "${listing.title}" added Rs. ${split.sellerEarningAmount} to your wallet.`,
-      actionUrl: "/app/wallet",
-      metadata: {
-        purchaseId: purchase._id.toString(),
-        listingId: listing._id.toString(),
-        amountInr: split.sellerEarningAmount,
-        buyerMode: "guest",
-      },
-    });
+    if (split.qualifiesForSellerWallet) {
+      await notificationService.create({
+        userId: listing.sellerId,
+        type: "sale_credit_received",
+        title: "Marketplace sale credited",
+        message: `A guest sale for "${listing.title}" added Rs. ${split.sellerEarningAmount} to your wallet.`,
+        actionUrl: "/app/wallet",
+        metadata: {
+          purchaseId: purchase._id.toString(),
+          listingId: listing._id.toString(),
+          amountInr: split.sellerEarningAmount,
+          buyerMode: "guest",
+          sellerSharePercent: split.sellerSharePercent,
+        },
+      });
+    }
 
     return {
       payment: serializePayment(payment),

@@ -4,8 +4,26 @@ import { EmptyStateCard } from "../../components/ui/EmptyStateCard.jsx";
 import { FinanceStatCard } from "../../components/ui/FinanceStatCard.jsx";
 import { LoadingCard } from "../../components/ui/LoadingCard.jsx";
 import { SectionHeader } from "../../components/ui/SectionHeader.jsx";
+import { StatusBadge } from "../../components/ui/StatusBadge.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { fetchWallet } from "../../services/api/index.js";
+
+function getTransactionTone(item) {
+  return item.direction === "credit" ? "success" : item.type.includes("release") ? "neutral" : "warning";
+}
+
+function getTransactionTitle(item) {
+  if (item.type === "marketplace_sale_credit") {
+    return "Marketplace sale credited";
+  }
+  if (item.type === "withdrawal_hold") {
+    return "Withdrawal reserved";
+  }
+  if (item.type === "withdrawal_release" || item.type === "withdrawal_rejection_release") {
+    return "Withdrawal amount released";
+  }
+  return item.type;
+}
 
 export function WalletPage() {
   const { accessToken } = useAuth();
@@ -83,6 +101,24 @@ export function WalletPage() {
         <article className="detail-card">
           <div className="section-header">
             <div>
+              <p className="eyebrow">Seller payout rule</p>
+              <h2>How marketplace earnings land here</h2>
+              <p className="support-copy">
+                Developer Mode user-sold PDFs credit {wallet?.sellerRevenueSharePercent || 70}% to your seller wallet after verified payment. The remaining share stays with the platform according to current business rules.
+              </p>
+            </div>
+            <StatusBadge tone="success">{wallet?.sellerRevenueSharePercent || 70}% seller share</StatusBadge>
+          </div>
+          <div className="info-grid">
+            <div><span className="info-label">Seller share</span><strong>{wallet?.sellerRevenueSharePercent || 70}%</strong></div>
+            <div><span className="info-label">Platform share</span><strong>{100 - (wallet?.sellerRevenueSharePercent || 70)}%</strong></div>
+            <div><span className="info-label">Credits</span><strong>Rs. {wallet?.totalCredits || 0}</strong></div>
+            <div><span className="info-label">Debits</span><strong>Rs. {wallet?.totalDebits || 0}</strong></div>
+          </div>
+        </article>
+        <article className="detail-card">
+          <div className="section-header">
+            <div>
               <p className="eyebrow">Ledger totals</p>
               <h2>Credit and debit snapshot</h2>
             </div>
@@ -94,12 +130,13 @@ export function WalletPage() {
             <div><span className="info-label">Transactions tracked</span><strong>{wallet?.transactions?.length || 0}</strong></div>
           </div>
         </article>
-        <EmptyStateCard
-          title="Withdrawal controls"
-          description="Create, monitor, and cancel payout requests from the withdrawals section when you want to reserve part of your available balance."
-          action={<Link className="button secondary" to="/app/withdrawals">Open withdrawals</Link>}
-        />
       </div>
+
+      <EmptyStateCard
+        title="Withdrawal controls"
+        description="Create, monitor, and cancel payout requests from the withdrawals section when you want to reserve part of your available balance."
+        action={<Link className="button secondary" to="/app/withdrawals">Open withdrawals</Link>}
+      />
 
       <section className="detail-card">
         <div className="section-header">
@@ -112,9 +149,26 @@ export function WalletPage() {
           <div className="activity-list">
             {wallet.transactions.map((item) => (
               <article className="activity-item" key={item.id}>
-                <strong>{item.type}</strong>
+                <div className="section-header">
+                  <div>
+                    <strong>{getTransactionTitle(item)}</strong>
+                    <span className="support-copy">
+                      {item.note || "Wallet ledger entry"} - {new Date(item.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="topbar-chip-group">
+                    <StatusBadge tone={getTransactionTone(item)}>
+                      {item.direction === "credit" ? `+Rs. ${item.amountInr}` : `-Rs. ${item.amountInr}`}
+                    </StatusBadge>
+                    <StatusBadge tone="neutral">Balance Rs. {item.balanceAfter}</StatusBadge>
+                  </div>
+                </div>
                 <span className="support-copy">
-                  {item.direction} - Rs. {item.amountInr} - {new Date(item.createdAt).toLocaleString()}
+                  {item.metadata?.listingTitle
+                    ? `${item.metadata.listingTitle} - ${item.metadata?.sellerSharePercent || wallet?.sellerRevenueSharePercent || 70}% seller credit`
+                    : item.sourceType === "withdrawal_request"
+                      ? "Linked to a withdrawal request."
+                      : "Tracked in the finance ledger."}
                 </span>
               </article>
             ))}
