@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { SeoHead } from "../../seo/SeoHead.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { ThemeToggleButton } from "../ui/ThemeToggleButton.jsx";
 
 export function PublicLayout() {
   const { isAuthenticated, role } = useAuth();
@@ -9,56 +10,141 @@ export function PublicLayout() {
   const isMarketplacePage = location.pathname === "/" || location.pathname === "/marketplace";
   const workspaceHref = isAuthenticated ? (role === "admin" ? "/admin/profile" : "/app/profile") : "/login";
   const workspaceLabel = isAuthenticated ? (role === "admin" ? "Admin center" : "My account") : "Login";
+  const buyerSteps = [
+    "Open a PDF card",
+    "Enter your full name",
+    "Pay and download securely",
+  ];
 
   return (
     <div className={`site-shell public-shell${isMarketplacePage ? " public-shell-wide" : ""}`}>
       <SeoHead title="ExamNova AI" description="AI-powered exam preparation platform and PDF marketplace." />
-      <header className="topbar public-navbar simple-public-navbar">
-        <div className="topbar-brand-wrap">
-          <div className="brand-mark" aria-hidden="true">
-            <i className="bi bi-file-earmark-pdf-fill" />
-          </div>
-          <div className="topbar-brand-cluster">
-            <span className="layout-kicker">Simple PDF Store</span>
-            <Link to="/" className="brand">
-              ExamNova AI
-            </Link>
-            <p className="brand-subcopy">
-              Browse notes, open a PDF, and purchase securely. The public website stays focused on PDF buying only.
-            </p>
+      <header className="topbar public-navbar bootstrap-public-navbar">
+        <div className="container-fluid px-0">
+          <div className="bootstrap-nav-shell">
+            <div className="d-flex flex-wrap align-items-center gap-3 gap-lg-4 flex-grow-1 min-w-0">
+              <Link
+                to="/marketplace"
+                className="bootstrap-brand d-inline-flex align-items-center gap-3 text-decoration-none min-w-0"
+              >
+                <span className="bootstrap-brand-badge" aria-hidden="true">
+                  <i className="bi bi-file-earmark-pdf-fill" />
+                </span>
+                <span className="d-grid min-w-0">
+                  <span className="bootstrap-kicker">ExamNova marketplace</span>
+                  <span className="bootstrap-brand-title">Download Notes & PDFs</span>
+                </span>
+              </Link>
+              <div className="bootstrap-nav-summary d-none d-lg-flex">
+                <i className="bi bi-shield-check" />
+                <span>Simple PDF buying experience for students.</span>
+              </div>
+            </div>
+            <nav className="bootstrap-nav-actions" aria-label="Public navigation">
+              <Link className="btn btn-outline-primary bootstrap-nav-button" to="/marketplace">
+                <i className="bi bi-grid-1x2-fill" />
+                Marketplace
+              </Link>
+              <a className="btn btn-outline-secondary bootstrap-nav-button" href="#buyer-flow">
+                <i className="bi bi-lightning-charge" />
+                How it works
+              </a>
+              <ThemeToggleButton compact className="bootstrap-theme-toggle" />
+              <Link className="btn btn-primary bootstrap-nav-cta" to={workspaceHref}>
+                <i className={`bi ${isAuthenticated ? "bi-person-circle" : "bi-box-arrow-in-right"}`} />
+                {workspaceLabel}
+              </Link>
+            </nav>
           </div>
         </div>
-        <nav className="simple-public-nav">
-          <Link className="nav-link-pill public-nav-link active" to="/marketplace">
-            <i className="bi bi-grid-1x2-fill" />
-            PDF Marketplace
-          </Link>
-          <Link className="nav-link-pill nav-cta" to={workspaceHref}>
-            <i className={`bi ${isAuthenticated ? "bi-person-circle" : "bi-box-arrow-in-right"}`} />
-            {workspaceLabel}
-          </Link>
-        </nav>
       </header>
       <main className={`page-shell${isMarketplacePage ? " page-shell-wide" : ""}`}>
         <Outlet />
       </main>
       {!isPdfDetailPage ? (
-        <footer className="footer-bar public-footer simple-public-footer">
-          <div className="simple-footer-grid">
-            <div className="footer-block">
-              <h3>ExamNova AI</h3>
-              <p className="support-copy">A simple public notes marketplace focused on browsing and purchasing PDFs.</p>
-            </div>
-            <div className="footer-block">
-              <h4>Quick links</h4>
-              <div className="footer-links">
-                <Link className="footer-link-pill" to="/marketplace">Marketplace</Link>
-                <Link className="footer-link-pill" to={workspaceHref}>{workspaceLabel}</Link>
+        <footer className="footer-bar public-footer bootstrap-public-footer" id="buyer-flow">
+          <div className="container-fluid px-0">
+            <div className="bootstrap-footer-card">
+              <div className="row g-3 g-xl-4">
+                <div className="col-12 col-lg-5">
+                  <div className="bootstrap-footer-panel bootstrap-footer-brand-panel h-100">
+                    <div className="d-inline-flex align-items-center gap-3 mb-3">
+                      <span className="bootstrap-brand-badge bootstrap-brand-badge-sm" aria-hidden="true">
+                        <i className="bi bi-journal-richtext" />
+                      </span>
+                      <div className="d-grid">
+                        <span className="bootstrap-kicker">Trusted student notes</span>
+                        <h3 className="mb-0">ExamNova AI PDF Marketplace</h3>
+                      </div>
+                    </div>
+                    <p className="mb-0">
+                      Browse academic PDFs, open one clean detail page, add your full name, and complete a secure
+                      download flow without extra clutter.
+                    </p>
+                    <div className="bootstrap-footer-trust">
+                      <span className="bootstrap-footer-chip">
+                        <i className="bi bi-patch-check-fill" />
+                        Simple checkout
+                      </span>
+                      <span className="bootstrap-footer-chip">
+                        <i className="bi bi-clock-history" />
+                        Scheduled releases
+                      </span>
+                      <span className="bootstrap-footer-chip">
+                        <i className="bi bi-file-lock2" />
+                        Secure access
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-6 col-lg-2">
+                  <div className="bootstrap-footer-panel h-100">
+                    <span className="bootstrap-kicker">Explore</span>
+                    <div className="bootstrap-footer-links">
+                      <Link to="/marketplace">Marketplace</Link>
+                      <Link to={workspaceHref}>{workspaceLabel}</Link>
+                      <a href="#buyer-flow">Buyer flow</a>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-6 col-lg-2">
+                  <div className="bootstrap-footer-panel h-100">
+                    <span className="bootstrap-kicker">Purchase flow</span>
+                    <ol className="bootstrap-footer-steps">
+                      {buyerSteps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
+                <div className="col-12 col-lg-3">
+                  <div className="bootstrap-footer-panel bootstrap-footer-cta-panel h-100">
+                    <span className="bootstrap-kicker">Ready to start</span>
+                    <h4>Open the marketplace and pick a PDF.</h4>
+                    <p className="mb-0">The public website is intentionally focused on one simple task: buying PDFs.</p>
+                    <div className="bootstrap-footer-actions">
+                      <Link className="btn btn-primary bootstrap-footer-button" to="/marketplace">
+                        <i className="bi bi-search" />
+                        Browse PDFs
+                      </Link>
+                      <Link className="btn btn-outline-primary bootstrap-footer-button" to={workspaceHref}>
+                        <i className={`bi ${isAuthenticated ? "bi-person-circle" : "bi-box-arrow-in-right"}`} />
+                        {workspaceLabel}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="footer-block">
-              <h4>Purchase flow</h4>
-              <p className="support-copy">Open any PDF card, enter your full name, complete payment, and download securely.</p>
+              <div className="bootstrap-footer-bottom">
+                <p className="mb-0">ExamNova AI keeps the public website focused on fast PDF discovery and secure downloads.</p>
+                <div className="bootstrap-footer-bottom-actions">
+                  <ThemeToggleButton compact className="bootstrap-theme-toggle" />
+                  <span className="bootstrap-footer-note">
+                    <i className="bi bi-lock-fill" />
+                    Secure buyer flow
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </footer>

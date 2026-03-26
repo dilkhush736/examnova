@@ -118,6 +118,172 @@
     var(--surface-strong);
 }
 
+.bootstrap-public-navbar {
+  top: 0;
+  display: block;
+  padding: 14px 18px 16px;
+  border-radius: 0 0 30px 30px;
+  border: 1px solid var(--border-soft);
+  border-top: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(240, 247, 255, 0.86)),
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.18), transparent 28%),
+    var(--surface-strong);
+  box-shadow: 0 20px 34px rgba(12, 28, 62, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+[data-theme="dark"] .bootstrap-public-navbar {
+  background:
+    linear-gradient(135deg, rgba(11, 20, 39, 0.94), rgba(16, 31, 60, 0.88)),
+    radial-gradient(circle at top right, rgba(111, 232, 255, 0.12), transparent 28%),
+    var(--surface-strong);
+}
+
+.bootstrap-nav-shell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.4rem;
+  flex-wrap: wrap;
+}
+
+.bootstrap-nav-shell .min-w-0 {
+  min-width: 0;
+}
+
+.bootstrap-brand {
+  color: var(--ink);
+}
+
+.bootstrap-brand:hover {
+  color: var(--ink);
+}
+
+.bootstrap-brand-badge {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(84, 126, 255, 0.16), rgba(111, 232, 255, 0.22));
+  color: var(--accent-deep);
+  border: 1px solid rgba(84, 126, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 24px rgba(18, 47, 98, 0.1);
+  font-size: 1.2rem;
+  flex: 0 0 auto;
+}
+
+.bootstrap-brand-badge-sm {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+}
+
+.bootstrap-kicker {
+  color: var(--accent-deep);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.bootstrap-brand-title {
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bootstrap-nav-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink-soft);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+[data-theme="dark"] .bootstrap-nav-summary {
+  background: rgba(19, 32, 56, 0.84);
+}
+
+.bootstrap-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.bootstrap-nav-button,
+.bootstrap-nav-cta,
+.bootstrap-footer-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.78rem 1.08rem;
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 12px 22px rgba(18, 47, 98, 0.08);
+}
+
+.bootstrap-nav-button.btn-outline-primary,
+.bootstrap-footer-button.btn-outline-primary {
+  border-color: var(--button-ghost-border);
+  background: var(--button-ghost-bg);
+  color: var(--button-ghost-text);
+}
+
+.bootstrap-nav-button.btn-outline-primary:hover,
+.bootstrap-footer-button.btn-outline-primary:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-badge-strong);
+  color: var(--ink);
+}
+
+.bootstrap-nav-button.btn-outline-secondary {
+  border-color: var(--border-soft);
+  background: var(--surface-subtle);
+  color: var(--ink-soft);
+}
+
+.bootstrap-nav-button.btn-outline-secondary:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-badge);
+  color: var(--ink);
+}
+
+.bootstrap-nav-cta.btn-primary,
+.bootstrap-footer-button.btn-primary {
+  border-color: rgba(111, 232, 255, 0.26);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: var(--button-primary-text);
+}
+
+.bootstrap-nav-cta.btn-primary:hover,
+.bootstrap-footer-button.btn-primary:hover {
+  border-color: rgba(111, 232, 255, 0.3);
+  color: var(--button-primary-text);
+  filter: brightness(1.03);
+}
+
+.bootstrap-theme-toggle.theme-toggle {
+  min-height: 48px;
+  padding-block: 0.72rem;
+  box-shadow: 0 12px 22px rgba(18, 47, 98, 0.08);
+}
+
 .simple-public-navbar {
   top: 0;
   border-radius: 0 0 28px 28px;
@@ -258,6 +424,138 @@
   background:
     radial-gradient(circle at top right, rgba(111, 232, 255, 0.08), transparent 18%),
     var(--surface-strong);
+}
+
+.bootstrap-public-footer {
+  padding: 24px 0 0;
+  background: none;
+}
+
+.bootstrap-public-footer .container-fluid {
+  padding-bottom: 10px;
+}
+
+.bootstrap-footer-card {
+  padding: 1.35rem;
+  border-radius: 30px;
+  border: 1px solid var(--border-soft);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(238, 247, 255, 0.76)),
+    radial-gradient(circle at bottom right, rgba(111, 232, 255, 0.12), transparent 28%),
+    var(--surface-strong);
+  box-shadow: 0 24px 40px rgba(12, 28, 62, 0.08);
+}
+
+[data-theme="dark"] .bootstrap-footer-card {
+  background:
+    linear-gradient(135deg, rgba(10, 18, 35, 0.94), rgba(16, 28, 51, 0.9)),
+    radial-gradient(circle at bottom right, rgba(111, 232, 255, 0.12), transparent 28%),
+    var(--surface-strong);
+}
+
+.bootstrap-footer-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.95rem;
+  padding: 1.2rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.bootstrap-footer-panel h3,
+.bootstrap-footer-panel h4,
+.bootstrap-footer-panel p {
+  margin: 0;
+}
+
+.bootstrap-footer-panel h3 {
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  line-height: 1.08;
+}
+
+.bootstrap-footer-panel h4 {
+  font-size: 1.18rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.bootstrap-footer-panel p {
+  color: var(--muted-strong);
+}
+
+.bootstrap-footer-brand-panel,
+.bootstrap-footer-cta-panel {
+  background:
+    linear-gradient(135deg, rgba(84, 126, 255, 0.06), rgba(111, 232, 255, 0.08)),
+    var(--surface-subtle);
+}
+
+.bootstrap-footer-trust,
+.bootstrap-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.bootstrap-footer-chip,
+.bootstrap-footer-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-badge);
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.bootstrap-footer-links {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.bootstrap-footer-links a {
+  color: var(--ink-soft);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bootstrap-footer-links a:hover {
+  color: var(--accent-deep);
+}
+
+.bootstrap-footer-steps {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.68rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.bootstrap-footer-bottom {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bootstrap-footer-bottom > p {
+  color: var(--muted-strong);
+}
+
+.bootstrap-footer-bottom-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .simple-public-footer {
@@ -762,6 +1060,11 @@
   .public-nav-panel {
     gap: 0.8rem;
   }
+
+  .bootstrap-nav-summary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 980px) {
@@ -824,6 +1127,20 @@
   .simple-public-navbar {
     top: 0;
   }
+
+  .bootstrap-nav-shell {
+    align-items: stretch;
+  }
+
+  .bootstrap-nav-actions,
+  .bootstrap-footer-bottom-actions {
+    justify-content: flex-start;
+  }
+
+  .bootstrap-footer-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 900px) {
@@ -859,6 +1176,13 @@
   .auth-utility-bar {
     width: min(100%, 1240px);
   }
+
+  .bootstrap-nav-button,
+  .bootstrap-nav-cta,
+  .bootstrap-theme-toggle.theme-toggle {
+    flex: 1 1 calc(50% - 0.75rem);
+    justify-content: center;
+  }
 }
 
 @media (max-width: 640px) {
@@ -875,6 +1199,11 @@
   }
 
   .simple-public-navbar {
+    border-radius: 0 0 24px 24px;
+  }
+
+  .bootstrap-public-navbar {
+    padding: 0.95rem 1rem 1rem;
     border-radius: 0 0 24px 24px;
   }
 
@@ -930,5 +1259,27 @@
 
   .simple-footer-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bootstrap-brand-title {
+    white-space: normal;
+  }
+
+  .bootstrap-nav-button,
+  .bootstrap-nav-cta,
+  .bootstrap-theme-toggle.theme-toggle,
+  .bootstrap-footer-button {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .bootstrap-footer-card {
+    padding: 1rem;
+    border-radius: 24px;
+  }
+
+  .bootstrap-footer-panel {
+    padding: 1rem;
+    border-radius: 20px;
   }
 }
