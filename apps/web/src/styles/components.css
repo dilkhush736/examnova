@@ -1859,4 +1859,47 @@
   .simple-pdf-detail-headline h1 {
     font-size: clamp(2rem, 10vw, 3rem);
   }
+
+  .simple-marketplace-page {
+    gap: 0.7rem;
+  }
+
+  .simple-marketplace-header h1 {
+    font-size: clamp(1.9rem, 9vw, 2.7rem);
+  }
+
+  .simple-marketplace-toolbar {
+    padding: 0.85rem;
+  }
+
+  .simple-marketplace-toolbar-grid .field {
+    flex-basis: 150px;
+  }
+
+  .simple-marketplace-grid {
+    gap: 0.65rem;
+  }
+
+  .simple-marketplace-card {
+    gap: 0.55rem;
+    padding: 0.62rem 0.45rem 0.68rem;
+  }
+
+  .simple-card-date,
+  .simple-cover-seal {
+    font-size: 0.66rem;
+    padding: 0.34rem 0.52rem;
+  }
+
+  .simple-card-copy h3 {
+    font-size: 0.98rem;
+  }
+
+  .simple-pdf-detail-shell {
+    padding: 0.95rem;
+  }
+
+  .simple-pdf-download-panel h2 {
+    font-size: clamp(1.45rem, 8vw, 2.05rem);
+  }
 }
