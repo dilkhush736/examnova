@@ -570,7 +570,6 @@ export function PdfDetailPage() {
 
     return (
       <div className="pdf-checkout-panel-stack">
-        <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 2</p><h2>Optional payment receipt</h2><p className="support-copy">Your PDF is already unlocked. Save the slip only if you want a formal transaction copy.</p></div>
         <div className="pdf-checkout-inline-hero compact">
           <div className="pdf-checkout-inline-metric"><span className="info-label">PDF status</span><strong>{pdfDownloadStatus === "downloaded" ? "Started" : pdfDownloadStatus === "downloading" ? "Preparing..." : hasDownloadAccess ? "Ready" : "Locked"}</strong></div>
           <div className="pdf-checkout-inline-metric"><span className="info-label">Receipt</span><strong>{receiptStatus === "downloaded" ? "Saved" : receiptStatus === "downloading" ? "Preparing..." : receiptSlip ? "Ready" : "Optional"}</strong></div>
