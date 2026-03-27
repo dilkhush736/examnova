@@ -19,10 +19,8 @@ import { buildBreadcrumbSchema, buildProductSchema, buildSeoPayload } from "../.
 
 const DEFAULT_FEEDBACK = { type: "", message: "", detail: "", showGuestDownload: false, showAccountDownload: false };
 const STEPS = [
-  { id: 1, icon: "bi-file-earmark-richtext", title: "Selected PDF", label: "Review file" },
-  { id: 2, icon: "bi-person-vcard", title: "Enter full name", label: "Attach buyer name" },
-  { id: 3, icon: "bi-shield-lock", title: "Secure payment", label: "Razorpay checkout" },
-  { id: 4, icon: "bi-download", title: "Download PDF", label: "Receipt and file" },
+  { id: 1, icon: "bi-lightning-charge", title: "Name, payment, auto-download", label: "One secure action" },
+  { id: 2, icon: "bi-receipt-cutoff", title: "Optional payment receipt", label: "Download slip if needed" },
 ];
 
 function normalizeGuestName(value) {
@@ -83,11 +81,9 @@ function triggerBase64Download(fileName, mimeType, contentBase64) {
 }
 
 function getStepState(stepId, step, hasDownloadAccess, pdfDownloadStatus) {
-  if (stepId === 1 && step > 1) return "complete";
-  if (stepId === 2 && (step > 2 || hasDownloadAccess)) return "complete";
-  if (stepId === 3 && hasDownloadAccess) return "complete";
-  if (stepId === 4 && pdfDownloadStatus === "downloaded") return "complete";
-  if (stepId === 4 && hasDownloadAccess) return "active";
+  if (stepId === 1 && hasDownloadAccess) return "complete";
+  if (stepId === 2 && pdfDownloadStatus === "downloaded") return "complete";
+  if (stepId === 2 && hasDownloadAccess) return "active";
   if (stepId === step) return "active";
   return "upcoming";
 }
@@ -175,7 +171,7 @@ export function PdfDetailPage() {
   const coverAlt = `${listing?.title || "PDF"} cover`;
   const isCheckoutOpen = searchParams.get("checkout") === "1" || searchParams.get("buy") === "1";
   const hasDownloadAccess = Boolean((feedback.showGuestDownload && guestAccess?.purchaseId) || (feedback.showAccountDownload && accountPurchaseId));
-  const progressValue = pdfDownloadStatus === "downloaded" ? 100 : hasDownloadAccess ? 84 : wizardStep === 3 ? 62 : wizardStep === 2 ? 36 : 12;
+  const progressValue = pdfDownloadStatus === "downloaded" ? 100 : hasDownloadAccess ? 76 : isPurchasing ? 54 : 20;
 
   useEffect(() => {
     if (!isCheckoutOpen) {
@@ -183,7 +179,7 @@ export function PdfDetailPage() {
       return;
     }
     if (!wasCheckoutOpenRef.current) {
-      setWizardStep(hasDownloadAccess ? 4 : 1);
+      setWizardStep(hasDownloadAccess ? 2 : 1);
       if (!hasDownloadAccess) {
         setReceiptStatus("idle");
         setPdfDownloadStatus("idle");
@@ -203,7 +199,7 @@ export function PdfDetailPage() {
 
   useEffect(() => {
     if (!hasDownloadAccess) return;
-    setWizardStep(4);
+    setWizardStep(2);
     setPdfDownloadStatus((current) => (current === "downloaded" ? current : "ready"));
   }, [hasDownloadAccess]);
 
@@ -232,7 +228,7 @@ export function PdfDetailPage() {
           ...current,
           type: "error",
           message: "Payment succeeded, but the receipt slip could not be downloaded automatically.",
-          detail: "Use the slip button in step 4 again.",
+          detail: "Use the receipt button in step 2 again.",
         }));
       }
       throw downloadError;
@@ -261,7 +257,7 @@ export function PdfDetailPage() {
         setFeedback({
           type: "error",
           message: requestError.message || "Unable to download your PDF.",
-          detail: "Use the download button in step 4 again.",
+          detail: "Use the PDF button in step 2 again.",
           showGuestDownload: false,
           showAccountDownload: false,
         });
@@ -290,7 +286,7 @@ export function PdfDetailPage() {
         setFeedback({
           type: "error",
           message: requestError.message || "Unable to download this PDF from your account.",
-          detail: "Use the step 4 download button again.",
+          detail: "Use the step 2 PDF button again.",
           showGuestDownload: false,
           showAccountDownload: Boolean(purchaseId),
         });
@@ -313,7 +309,7 @@ export function PdfDetailPage() {
     if (orderResponse.data.alreadyOwned) {
       const existingPurchaseId = orderResponse.data?.purchase?.id || "";
       setAccountPurchaseId(existingPurchaseId);
-      setWizardStep(4);
+      setWizardStep(2);
       setPdfDownloadStatus("ready");
       try {
         await handleAccountDownload(existingPurchaseId, { silent: true });
@@ -328,7 +324,7 @@ export function PdfDetailPage() {
         setFeedback({
           type: "success",
           message: `You already own "${listing.title}".`,
-          detail: "Step 4 is ready. Use the PDF download button there if needed.",
+          detail: "Step 2 is ready. Use the PDF download button there if needed.",
           showGuestDownload: false,
           showAccountDownload: Boolean(existingPurchaseId),
         });
@@ -369,7 +365,7 @@ export function PdfDetailPage() {
 
     if (!purchaseResult.purchaseId) throw new Error("Payment succeeded, but account download access could not be prepared.");
     setAccountPurchaseId(purchaseResult.purchaseId);
-    setWizardStep(4);
+    setWizardStep(2);
     setPdfDownloadStatus("ready");
     if (purchaseResult.receipt) {
       setReceiptSlip(purchaseResult.receipt);
@@ -388,7 +384,7 @@ export function PdfDetailPage() {
       setFeedback({
         type: "success",
         message: `Payment successful. "${listing.title}" is unlocked in your account.`,
-        detail: "Step 4 is ready. Use the download button below if the file did not start automatically.",
+        detail: "Step 2 is ready. Use the download button below if the file did not start automatically.",
         showGuestDownload: false,
         showAccountDownload: true,
       });
@@ -441,7 +437,7 @@ export function PdfDetailPage() {
     storeGuestPurchaseAccess(listing.id, verificationResult.guestAccess);
     setGuestAccess(verificationResult.guestAccess);
     setGuestFullName(selectedBuyerName);
-    setWizardStep(4);
+    setWizardStep(2);
     setPdfDownloadStatus("ready");
     if (verificationResult.receipt) {
       setReceiptSlip(verificationResult.receipt);
@@ -452,7 +448,7 @@ export function PdfDetailPage() {
       message: `Payment successful. "${listing.title}" is ready to download.`,
       detail: verificationResult.guestAccess.expiresAt
         ? `Guest access remains active until ${new Date(verificationResult.guestAccess.expiresAt).toLocaleString()}.`
-        : "Step 4 is now ready for your PDF download.",
+        : "Step 2 is now ready for your PDF download.",
       showGuestDownload: true,
       showAccountDownload: false,
     });
@@ -463,7 +459,7 @@ export function PdfDetailPage() {
       setFeedback({
         type: "success",
         message: `Payment successful. "${listing.title}" is unlocked.`,
-        detail: "Use the step 4 download button below if the file did not start automatically.",
+        detail: "Use the step 2 download button below if the file did not start automatically.",
         showGuestDownload: true,
         showAccountDownload: false,
       });
@@ -485,7 +481,7 @@ export function PdfDetailPage() {
 
     setFeedback(DEFAULT_FEEDBACK);
     setIsPurchasing(true);
-    setWizardStep(3);
+    setWizardStep(1);
     try {
       if (isAuthenticated) await handleAuthenticatedPurchase();
       else await handlePublicPurchase();
@@ -535,7 +531,7 @@ export function PdfDetailPage() {
     nextParams.set("checkout", "1");
     nextParams.delete("buy");
     setSearchParams(nextParams, { replace: true });
-    setWizardStep(3);
+    setWizardStep(1);
     handlePurchase();
   }, [accessToken, isAuthenticated, isLoading, listing?.id, releaseLocked, searchParams, selectedBuyerName, setSearchParams]);
 
@@ -552,62 +548,30 @@ export function PdfDetailPage() {
       })
     : null;
 
-  const detailSummary = listing?.description || "Open the secure flow, verify payment, download the payment slip automatically, and then download the PDF.";
+  const detailSummary = listing?.description || "Enter your name, complete secure payment, auto-download the PDF, and optionally save the payment receipt.";
 
   function renderWizardPanel() {
     if (wizardStep === 1) {
       return (
         <div className="pdf-checkout-panel-stack">
-          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 1</p><h2>Review the selected PDF</h2><p className="support-copy">Confirm the file, release time, and amount before moving ahead.</p></div>
-          <div className="pdf-checkout-stage-note">
-            <i className="bi bi-file-check" />
-            <div>
-              <strong>Selected PDF is locked in</strong>
-              <p>You are checking out only this file. Price and release info stay visible in the summary card.</p>
-            </div>
+          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 1</p><h2>Enter name, pay, and auto-download</h2><p className="support-copy">One compact secure step for buyer name, Razorpay payment, and automatic PDF download.</p></div>
+          <label className="field"><span>Full name</span><input autoComplete="name" className="input" disabled={isPurchasing} onChange={(event) => setGuestFullName(event.target.value)} placeholder="Enter your full name" type="text" value={guestFullName} /></label>
+          <div className="pdf-checkout-inline-hero">
+            <div className="pdf-checkout-inline-metric"><span className="info-label">Selected PDF</span><strong>{listing?.title || "PDF"}</strong></div>
+            <div className="pdf-checkout-inline-metric"><span className="info-label">Amount</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
           </div>
           {releaseLocked ? <div className="simple-release-lock-card"><span className="info-label">Scheduled release</span><strong>{formatMarketplaceDate(listing?.releaseAt)}</strong>{releaseCountdown ? <strong className="simple-release-countdown">{releaseCountdown.shortLabel}</strong> : null}</div> : null}
-          <div className="pdf-checkout-bullet-list">
-            <div className="pdf-checkout-bullet-item"><i className="bi bi-check2-circle" /><span>One selected PDF only.</span></div>
-            <div className="pdf-checkout-bullet-item"><i className="bi bi-file-earmark-person" /><span>Name gets embedded multiple times inside the PDF.</span></div>
-            <div className="pdf-checkout-bullet-item"><i className="bi bi-receipt-cutoff" /><span>Receipt downloads first, then the PDF step unlocks.</span></div>
+          <div className="pdf-checkout-fibre-note">
+            <span className="pdf-checkout-fibre-dot" />
+            <div>
+              <strong>Secure chain</strong>
+              <p>Name attaches to the PDF, payment verifies securely, and the file starts downloading automatically.</p>
+            </div>
           </div>
+          {feedback.message ? <div className="stack-section"><p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>{feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}</div> : null}
           <div className="pdf-checkout-actions">
             <button className="button secondary" onClick={closeCheckoutWizard} type="button"><i className="bi bi-arrow-left" />Back</button>
-            <button className="button primary" onClick={() => setWizardStep(2)} type="button"><i className="bi bi-arrow-right-circle" />Continue</button>
-          </div>
-        </div>
-      );
-    }
-
-    if (wizardStep === 2) {
-      return (
-        <div className="pdf-checkout-panel-stack">
-          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 2</p><h2>Enter full name</h2><p className="support-copy">The same name is used for buyer identity, receipt slip, and PDF personalization.</p></div>
-          <label className="field"><span>Full name</span><input autoComplete="name" className="input" disabled={isPurchasing} onChange={(event) => setGuestFullName(event.target.value)} placeholder="Enter your full name" type="text" value={guestFullName} /></label>
-          <div className="simple-personalization-note pdf-checkout-personalization"><span className="info-label">PDF personalization preview</span><strong>{selectedBuyerName || "Your full name"}</strong></div>
-          <div className="pdf-checkout-actions">
-            <button className="button secondary" onClick={() => setWizardStep(1)} type="button"><i className="bi bi-arrow-left" />Previous</button>
-            <button className="button primary" onClick={() => (selectedBuyerName ? setWizardStep(3) : setFeedback({ type: "error", message: "Enter your full name before moving to secure payment.", detail: "", showGuestDownload: false, showAccountDownload: false }))} type="button"><i className="bi bi-shield-check" />Continue to payment</button>
-          </div>
-        </div>
-      );
-    }
-
-    if (wizardStep === 3) {
-      return (
-        <div className="pdf-checkout-panel-stack">
-          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 3</p><h2>Secure payment</h2><p className="support-copy">Secure Razorpay checkout opens next. After verification, the payment slip downloads automatically.</p></div>
-          <div className="pdf-checkout-status-grid">
-            <div className="pdf-checkout-status-card"><span className="info-label">Selected file</span><strong>{listing?.title || "PDF"}</strong></div>
-            <div className="pdf-checkout-status-card"><span className="info-label">Buyer name</span><strong>{selectedBuyerName || "Not entered yet"}</strong></div>
-            <div className="pdf-checkout-status-card"><span className="info-label">Payment method</span><strong>Secure Razorpay</strong></div>
-            <div className="pdf-checkout-status-card"><span className="info-label">Amount</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
-          </div>
-          {feedback.message ? <div className="stack-section"><p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>{feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}</div> : <div className="pdf-checkout-notice"><i className="bi bi-lock-fill" /><div><strong>Secure checkout only</strong><p>Download unlocks only after payment verification completes.</p></div></div>}
-          <div className="pdf-checkout-actions">
-            <button className="button secondary" disabled={isPurchasing} onClick={() => setWizardStep(2)} type="button"><i className="bi bi-arrow-left" />Previous</button>
-            <button className="button primary animated-download-button" disabled={releaseLocked || isPurchasing} onClick={handlePurchase} type="button"><i className="bi bi-credit-card-2-front download-button-icon" />{isPurchasing ? "Opening secure payment..." : `Pay securely - Rs. ${listing?.priceInr || 0}`}</button>
+            <button className="button primary animated-download-button" disabled={releaseLocked || isPurchasing} onClick={() => (selectedBuyerName ? handlePurchase() : setFeedback({ type: "error", message: "Enter your full name before starting secure payment.", detail: "", showGuestDownload: false, showAccountDownload: false }))} type="button"><i className="bi bi-credit-card-2-front download-button-icon" />{isPurchasing ? "Opening secure payment..." : `Pay & auto-download PDF`}</button>
           </div>
         </div>
       );
@@ -615,15 +579,15 @@ export function PdfDetailPage() {
 
     return (
       <div className="pdf-checkout-panel-stack">
-        <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 4</p><h2>Download your files</h2><p className="support-copy">The payment slip is generated first, then the PDF download starts automatically.</p></div>
-        <div className="pdf-checkout-status-grid">
-          <div className="pdf-checkout-status-card"><span className="info-label">Receipt slip</span><strong>{receiptStatus === "downloaded" ? "Downloaded" : receiptStatus === "downloading" ? "Preparing..." : receiptSlip ? "Ready" : "Not generated"}</strong></div>
-          <div className="pdf-checkout-status-card"><span className="info-label">PDF file</span><strong>{pdfDownloadStatus === "downloaded" ? "Download started" : pdfDownloadStatus === "downloading" ? "Preparing..." : hasDownloadAccess ? "Ready" : "Locked"}</strong></div>
+        <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 2</p><h2>Optional payment receipt</h2><p className="support-copy">Your PDF is already unlocked. Save the slip only if you want a formal transaction copy.</p></div>
+        <div className="pdf-checkout-inline-hero compact">
+          <div className="pdf-checkout-inline-metric"><span className="info-label">PDF status</span><strong>{pdfDownloadStatus === "downloaded" ? "Started" : pdfDownloadStatus === "downloading" ? "Preparing..." : hasDownloadAccess ? "Ready" : "Locked"}</strong></div>
+          <div className="pdf-checkout-inline-metric"><span className="info-label">Receipt</span><strong>{receiptStatus === "downloaded" ? "Saved" : receiptStatus === "downloading" ? "Preparing..." : receiptSlip ? "Ready" : "Optional"}</strong></div>
         </div>
         {feedback.message ? <div className="stack-section"><p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>{feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}</div> : null}
         <div className="pdf-checkout-actions">
-          {receiptSlip ? <button className="button secondary" onClick={() => downloadReceiptSlip(receiptSlip)} type="button"><i className="bi bi-receipt-cutoff" />Download payment slip</button> : null}
-          <button className="button primary full-width animated-download-button" disabled={releaseLocked || isPurchasing || isGuestDownloading || isAccountDownloading} onClick={handleDownloadStepAction} type="button"><i className={`bi ${releaseLocked ? "bi-lock" : "bi-download"} download-button-icon${releaseLocked ? " is-locked" : ""}`} />{getDownloadButtonLabel()}</button>
+          {receiptSlip ? <button className="button secondary" onClick={() => downloadReceiptSlip(receiptSlip)} type="button"><i className="bi bi-receipt-cutoff" />Download receipt</button> : null}
+          <button className="button primary full-width animated-download-button" disabled={releaseLocked || isPurchasing || isGuestDownloading || isAccountDownloading} onClick={handleDownloadStepAction} type="button"><i className={`bi ${releaseLocked ? "bi-lock" : "bi-download"} download-button-icon${releaseLocked ? " is-locked" : ""}`} />Download PDF again</button>
         </div>
       </div>
     );
@@ -653,13 +617,13 @@ export function PdfDetailPage() {
                     <div><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
                     <div><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
                   </div>
-                  <p className="support-copy">Open the full-screen guided flow to review, pay, download the slip, and then download the PDF.</p>
+                  <p className="support-copy">One secure payment flow for this PDF.</p>
                 </article>
                 <article className="detail-card simple-pdf-download-panel">
                   <p className="eyebrow">Secure checkout</p>
                   <h2>Open the full-screen download flow</h2>
-                  <p className="support-copy">Review the selected PDF, enter your full name, complete secure payment, and then download the file.</p>
-                  <button className="button primary full-width" onClick={() => openCheckoutWizard(1)} type="button"><i className="bi bi-stars" />Start secure steps</button>
+                  <p className="support-copy">2-step ultra-fast checkout.</p>
+                  <button className="button primary full-width" onClick={() => openCheckoutWizard(1)} type="button"><i className="bi bi-stars" />Start 2-step checkout</button>
                 </article>
               </div>
             </article>
@@ -690,12 +654,11 @@ export function PdfDetailPage() {
                   <aside className="pdf-checkout-preview detail-card">
                     <p className="eyebrow">Selected PDF</p>
                     {listing?.coverImageUrl ? <div className="simple-pdf-cover pdf-checkout-cover"><img alt={coverAlt} className="simple-pdf-cover-image" src={listing.coverImageUrl} /></div> : null}
-                    <div className="pdf-checkout-preview-copy"><h3>{listing?.title || "PDF"}</h3><p className="support-copy">{detailSummary}</p></div>
+                    <div className="pdf-checkout-preview-copy"><h3>{listing?.title || "PDF"}</h3><p className="support-copy">One file. One secure payment.</p></div>
                     <div className="pdf-checkout-mini-grid">
                       <div><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
                       <div><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
                     </div>
-                    <div className="pdf-checkout-preview-note"><i className="bi bi-shield-check" /><p>Payment slip first, personalized PDF next. The whole flow stays inside one guided checkout.</p></div>
                   </aside>
                   <section className="pdf-checkout-panel detail-card">{renderWizardPanel()}</section>
                 </div>
