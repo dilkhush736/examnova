@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { EmptyStateCard } from "../../components/ui/EmptyStateCard.jsx";
 import { LoadingCard } from "../../components/ui/LoadingCard.jsx";
 import { SeoHead } from "../../seo/SeoHead.jsx";
@@ -14,20 +14,16 @@ import {
   verifyPublicMarketplacePayment,
 } from "../../services/api/index.js";
 import { loadRazorpayCheckout } from "../../utils/loadRazorpayCheckout.js";
-import {
-  formatMarketplaceDate,
-  getCountdownParts,
-  isListingReleaseLocked,
-} from "../../utils/marketplaceAvailability.js";
+import { formatMarketplaceDate, getCountdownParts, isListingReleaseLocked } from "../../utils/marketplaceAvailability.js";
 import { buildBreadcrumbSchema, buildProductSchema, buildSeoPayload } from "../../utils/seo.js";
 
-const DEFAULT_FEEDBACK = {
-  type: "",
-  message: "",
-  detail: "",
-  showGuestDownload: false,
-  showAccountDownload: false,
-};
+const DEFAULT_FEEDBACK = { type: "", message: "", detail: "", showGuestDownload: false, showAccountDownload: false };
+const STEPS = [
+  { id: 1, icon: "bi-file-earmark-richtext", title: "Selected PDF", label: "Review file" },
+  { id: 2, icon: "bi-person-vcard", title: "Enter full name", label: "Attach buyer name" },
+  { id: 3, icon: "bi-shield-lock", title: "Secure payment", label: "Razorpay checkout" },
+  { id: 4, icon: "bi-download", title: "Download PDF", label: "Receipt and file" },
+];
 
 function normalizeGuestName(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
@@ -38,63 +34,67 @@ function getGuestPurchaseStorageKey(listingId) {
 }
 
 function readGuestPurchaseAccess(listingId) {
-  if (typeof window === "undefined" || !listingId) {
-    return null;
-  }
-
+  if (typeof window === "undefined" || !listingId) return null;
   try {
     const rawValue = window.sessionStorage.getItem(getGuestPurchaseStorageKey(listingId));
-    if (!rawValue) {
-      return null;
-    }
-
+    if (!rawValue) return null;
     const parsedValue = JSON.parse(rawValue);
-    if (!parsedValue?.purchaseId || !parsedValue?.token) {
-      window.sessionStorage.removeItem(getGuestPurchaseStorageKey(listingId));
-      return null;
-    }
-
-    if (parsedValue.expiresAt && new Date(parsedValue.expiresAt).getTime() <= Date.now()) {
-      window.sessionStorage.removeItem(getGuestPurchaseStorageKey(listingId));
-      return null;
-    }
-
+    if (!parsedValue?.purchaseId || !parsedValue?.token) return null;
+    if (parsedValue.expiresAt && new Date(parsedValue.expiresAt).getTime() <= Date.now()) return null;
     return parsedValue;
   } catch {
-    window.sessionStorage.removeItem(getGuestPurchaseStorageKey(listingId));
     return null;
   }
 }
 
 function storeGuestPurchaseAccess(listingId, access) {
-  if (typeof window === "undefined" || !listingId || !access?.purchaseId || !access?.token) {
-    return;
-  }
-
+  if (typeof window === "undefined" || !listingId || !access?.purchaseId || !access?.token) return;
   window.sessionStorage.setItem(getGuestPurchaseStorageKey(listingId), JSON.stringify(access));
 }
 
 function clearGuestPurchaseAccess(listingId) {
-  if (typeof window === "undefined" || !listingId) {
-    return;
-  }
-
+  if (typeof window === "undefined" || !listingId) return;
   window.sessionStorage.removeItem(getGuestPurchaseStorageKey(listingId));
 }
 
 function triggerBlobDownload(blob, title) {
-  const blobUrl = window.URL.createObjectURL(blob);
+  const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-  anchor.href = blobUrl;
+  anchor.href = url;
   anchor.download = `${title || "marketplace-pdf"}.pdf`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  window.URL.revokeObjectURL(blobUrl);
+  window.URL.revokeObjectURL(url);
+}
+
+function triggerBase64Download(fileName, mimeType, contentBase64) {
+  const binary = window.atob(String(contentBase64 || ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const url = window.URL.createObjectURL(new Blob([bytes], { type: mimeType || "application/pdf" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "payment-slip.pdf";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function getStepState(stepId, step, hasDownloadAccess, pdfDownloadStatus) {
+  if (stepId === 1 && step > 1) return "complete";
+  if (stepId === 2 && (step > 2 || hasDownloadAccess)) return "complete";
+  if (stepId === 3 && hasDownloadAccess) return "complete";
+  if (stepId === 4 && pdfDownloadStatus === "downloaded") return "complete";
+  if (stepId === 4 && hasDownloadAccess) return "active";
+  if (stepId === step) return "active";
+  return "upcoming";
 }
 
 export function PdfDetailPage() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { accessToken, isAuthenticated, user } = useAuth();
   const [listing, setListing] = useState(null);
@@ -107,138 +107,165 @@ export function PdfDetailPage() {
   const [guestFullName, setGuestFullName] = useState("");
   const [guestAccess, setGuestAccess] = useState(null);
   const [accountPurchaseId, setAccountPurchaseId] = useState("");
+  const [receiptSlip, setReceiptSlip] = useState(null);
+  const [receiptStatus, setReceiptStatus] = useState("idle");
+  const [pdfDownloadStatus, setPdfDownloadStatus] = useState("idle");
+  const [wizardStep, setWizardStep] = useState(1);
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const autoPurchaseAttemptedRef = useRef(false);
+  const wasCheckoutOpenRef = useRef(false);
 
   useEffect(() => {
     let active = true;
-
     async function loadListing() {
       setIsLoading(true);
       setError("");
-
       try {
         const response = await fetchPublicListingDetail(slug);
-        if (active) {
-          setListing(response.data.listing || null);
-        }
+        if (active) setListing(response.data.listing || null);
       } catch (requestError) {
-        if (active) {
-          setError(requestError.message || "Unable to load marketplace listing.");
-        }
+        if (active) setError(requestError.message || "Unable to load marketplace listing.");
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     }
-
-    if (slug) {
-      loadListing();
-    }
-
+    if (slug) loadListing();
     return () => {
       active = false;
     };
   }, [slug]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.name && !guestFullName) {
-      setGuestFullName(user.name);
-    }
+    if (isAuthenticated && user?.name && !guestFullName) setGuestFullName(user.name);
   }, [guestFullName, isAuthenticated, user?.name]);
 
   useEffect(() => {
-    if (!listing?.id) {
-      return;
-    }
-
+    if (!listing?.id) return;
     const storedGuestAccess = readGuestPurchaseAccess(listing.id);
     setGuestAccess(storedGuestAccess);
-
-    if (storedGuestAccess?.buyerName) {
-      setGuestFullName(storedGuestAccess.buyerName);
+    if (storedGuestAccess?.buyerName) setGuestFullName(storedGuestAccess.buyerName);
+    if (storedGuestAccess) {
+      setPdfDownloadStatus((current) => (current === "downloaded" ? current : "ready"));
+      setFeedback((current) =>
+        current.message
+          ? current
+          : {
+              type: "success",
+              message: `Your download access for "${listing.title}" is still active in this tab.`,
+              detail: storedGuestAccess.expiresAt
+                ? `Secure guest access remains active until ${new Date(storedGuestAccess.expiresAt).toLocaleString()}.`
+                : "",
+              showGuestDownload: true,
+              showAccountDownload: false,
+            },
+      );
     }
-
-    if (storedGuestAccess && !feedback.message) {
-      setFeedback({
-        type: "success",
-        message: `Your download access for "${listing.title}" is still active in this tab.`,
-        detail: storedGuestAccess.expiresAt
-          ? `Secure guest access remains active until ${new Date(storedGuestAccess.expiresAt).toLocaleString()}.`
-          : "",
-        showGuestDownload: true,
-        showAccountDownload: false,
-      });
-    }
-  }, [feedback.message, listing?.id, listing?.title]);
+  }, [listing?.id, listing?.title]);
 
   useEffect(() => {
-    if (
-      !searchParams.get("buy") ||
-      !isAuthenticated ||
-      !accessToken ||
-      !listing?.id ||
-      !normalizeGuestName(guestFullName) ||
-      isListingReleaseLocked(listing) ||
-      isLoading ||
-      autoPurchaseAttemptedRef.current
-    ) {
-      return;
-    }
-
-    autoPurchaseAttemptedRef.current = true;
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("buy");
-    setSearchParams(nextParams, { replace: true });
-    handlePurchase();
-  }, [accessToken, guestFullName, isAuthenticated, isLoading, listing?.id, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!listing?.releaseAt) {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setCountdownNow(Date.now());
-    }, 1000);
-
+    if (!listing?.releaseAt) return undefined;
+    const intervalId = window.setInterval(() => setCountdownNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
   }, [listing?.releaseAt]);
 
+  const selectedBuyerName = normalizeGuestName(guestFullName);
+  const releaseLocked = isListingReleaseLocked(listing, countdownNow);
+  const releaseCountdown = getCountdownParts(listing?.releaseAt, countdownNow);
+  const releaseLabel = formatMarketplaceDate(listing?.releaseAt || listing?.publishedAt || listing?.createdAt);
+  const coverAlt = `${listing?.title || "PDF"} cover`;
+  const isCheckoutOpen = searchParams.get("checkout") === "1" || searchParams.get("buy") === "1";
+  const hasDownloadAccess = Boolean((feedback.showGuestDownload && guestAccess?.purchaseId) || (feedback.showAccountDownload && accountPurchaseId));
+  const progressValue = pdfDownloadStatus === "downloaded" ? 100 : hasDownloadAccess ? 84 : wizardStep === 3 ? 62 : wizardStep === 2 ? 36 : 12;
+
+  useEffect(() => {
+    if (!isCheckoutOpen) {
+      wasCheckoutOpenRef.current = false;
+      return;
+    }
+    if (!wasCheckoutOpenRef.current) {
+      setWizardStep(hasDownloadAccess ? 4 : 1);
+      if (!hasDownloadAccess) {
+        setReceiptStatus("idle");
+        setPdfDownloadStatus("idle");
+      }
+      wasCheckoutOpenRef.current = true;
+    }
+  }, [hasDownloadAccess, isCheckoutOpen]);
+
+  useEffect(() => {
+    if (!isCheckoutOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isCheckoutOpen]);
+
+  useEffect(() => {
+    if (!hasDownloadAccess) return;
+    setWizardStep(4);
+    setPdfDownloadStatus((current) => (current === "downloaded" ? current : "ready"));
+  }, [hasDownloadAccess]);
+
+  function openCheckoutWizard(step = 1) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("checkout", "1");
+    nextParams.delete("buy");
+    setSearchParams(nextParams);
+    setWizardStep(step);
+  }
+
+  function closeCheckoutWizard() {
+    navigate("/marketplace");
+  }
+
+  async function downloadReceiptSlip(receipt, { silent = false } = {}) {
+    if (!receipt?.contentBase64) return;
+    setReceiptStatus("downloading");
+    try {
+      triggerBase64Download(receipt.fileName, receipt.mimeType, receipt.contentBase64);
+      setReceiptStatus("downloaded");
+    } catch (downloadError) {
+      setReceiptStatus("error");
+      if (!silent) {
+        setFeedback((current) => ({
+          ...current,
+          type: "error",
+          message: "Payment succeeded, but the receipt slip could not be downloaded automatically.",
+          detail: "Use the slip button in step 4 again.",
+        }));
+      }
+      throw downloadError;
+    }
+  }
+
   async function handleGuestDownload(access = guestAccess, { silent = false } = {}) {
     if (!access?.purchaseId || !access?.token) {
-      if (!silent) {
-        setFeedback({
-          ...DEFAULT_FEEDBACK,
-          type: "error",
-          message: "Secure guest download is not ready yet.",
-        });
-      }
+      if (!silent) setFeedback({ ...DEFAULT_FEEDBACK, type: "error", message: "Secure guest download is not ready yet." });
       return;
     }
 
     setIsGuestDownloading(true);
-
+    setPdfDownloadStatus("downloading");
     try {
       const response = await downloadGuestLibraryItem(access.purchaseId, access.token);
       triggerBlobDownload(response.blob, listing?.title);
+      setPdfDownloadStatus("downloaded");
     } catch (requestError) {
+      setPdfDownloadStatus("error");
       if (requestError.status === 401 || requestError.status === 403) {
         clearGuestPurchaseAccess(listing?.id);
         setGuestAccess(null);
       }
-
       if (!silent) {
         setFeedback({
           type: "error",
           message: requestError.message || "Unable to download your PDF.",
-          detail: "If payment already succeeded, start the download flow again from this page.",
+          detail: "Use the download button in step 4 again.",
           showGuestDownload: false,
           showAccountDownload: false,
         });
       }
-
       throw requestError;
     } finally {
       setIsGuestDownloading(false);
@@ -247,32 +274,27 @@ export function PdfDetailPage() {
 
   async function handleAccountDownload(purchaseId = accountPurchaseId, { silent = false } = {}) {
     if (!accessToken || !purchaseId) {
-      if (!silent) {
-        setFeedback({
-          ...DEFAULT_FEEDBACK,
-          type: "error",
-          message: "Your account download is not ready yet.",
-        });
-      }
+      if (!silent) setFeedback({ ...DEFAULT_FEEDBACK, type: "error", message: "Your account download is not ready yet." });
       return;
     }
 
     setIsAccountDownloading(true);
-
+    setPdfDownloadStatus("downloading");
     try {
       const response = await downloadLibraryItem(accessToken, purchaseId);
       triggerBlobDownload(response.blob, listing?.title);
+      setPdfDownloadStatus("downloaded");
     } catch (requestError) {
+      setPdfDownloadStatus("error");
       if (!silent) {
         setFeedback({
           type: "error",
           message: requestError.message || "Unable to download this PDF from your account.",
-          detail: "Try the download button again in a moment.",
+          detail: "Use the step 4 download button again.",
           showGuestDownload: false,
           showAccountDownload: Boolean(purchaseId),
         });
       }
-
       throw requestError;
     } finally {
       setIsAccountDownloading(false);
@@ -280,24 +302,19 @@ export function PdfDetailPage() {
   }
 
   async function handleAuthenticatedPurchase() {
-    if (!accessToken) {
-      throw new Error("Your session is still loading. Please try again in a moment.");
-    }
-
-    const normalizedBuyerName = normalizeGuestName(guestFullName);
-    if (!normalizedBuyerName) {
-      throw new Error("Enter your full name before continuing.");
-    }
+    if (!accessToken) throw new Error("Your session is still loading. Please try again in a moment.");
+    if (!selectedBuyerName) throw new Error("Enter your full name before continuing.");
 
     const [RazorpayCheckout, orderResponse] = await Promise.all([
       loadRazorpayCheckout(),
-      createMarketplaceOrder(accessToken, listing.id, normalizedBuyerName),
+      createMarketplaceOrder(accessToken, listing.id, selectedBuyerName),
     ]);
 
     if (orderResponse.data.alreadyOwned) {
       const existingPurchaseId = orderResponse.data?.purchase?.id || "";
       setAccountPurchaseId(existingPurchaseId);
-
+      setWizardStep(4);
+      setPdfDownloadStatus("ready");
       try {
         await handleAccountDownload(existingPurchaseId, { silent: true });
         setFeedback({
@@ -311,7 +328,7 @@ export function PdfDetailPage() {
         setFeedback({
           type: "success",
           message: `You already own "${listing.title}".`,
-          detail: "Use the download button below to fetch the PDF from your account.",
+          detail: "Step 4 is ready. Use the PDF download button there if needed.",
           showGuestDownload: false,
           showAccountDownload: Boolean(existingPurchaseId),
         });
@@ -320,11 +337,9 @@ export function PdfDetailPage() {
     }
 
     const checkout = orderResponse.data?.checkout;
-    if (!checkout?.orderId || !checkout?.key) {
-      throw new Error("Payment checkout is not available right now. Please try again in a moment.");
-    }
+    if (!checkout?.orderId || !checkout?.key) throw new Error("Payment checkout is not available right now. Please try again in a moment.");
 
-    const purchaseId = await new Promise((resolve, reject) => {
+    const purchaseResult = await new Promise((resolve, reject) => {
       const razorpay = new RazorpayCheckout({
         key: checkout.key,
         amount: checkout.amount,
@@ -333,11 +348,9 @@ export function PdfDetailPage() {
         description: checkout.description,
         order_id: checkout.orderId,
         notes: checkout.notes,
-        prefill: checkout.prefill || { name: normalizedBuyerName },
-        theme: { color: "#cc6f29" },
-        modal: {
-          ondismiss: () => reject(new Error("Payment was cancelled before completion.")),
-        },
+        prefill: checkout.prefill || { name: selectedBuyerName },
+        theme: { color: "#1f63ff" },
+        modal: { ondismiss: () => reject(new Error("Payment was cancelled before completion.")) },
         handler: async (response) => {
           try {
             const verificationResponse = await verifyMarketplacePayment(accessToken, {
@@ -345,28 +358,29 @@ export function PdfDetailPage() {
               orderId: response.razorpay_order_id,
               signature: response.razorpay_signature,
             });
-            resolve(verificationResponse.data?.purchase?.id || "");
+            resolve({ purchaseId: verificationResponse.data?.purchase?.id || "", receipt: verificationResponse.data?.receipt || null });
           } catch (requestError) {
             reject(requestError);
           }
         },
       });
-
       razorpay.open();
     });
 
-    if (!purchaseId) {
-      throw new Error("Payment succeeded, but account download access could not be prepared.");
+    if (!purchaseResult.purchaseId) throw new Error("Payment succeeded, but account download access could not be prepared.");
+    setAccountPurchaseId(purchaseResult.purchaseId);
+    setWizardStep(4);
+    setPdfDownloadStatus("ready");
+    if (purchaseResult.receipt) {
+      setReceiptSlip(purchaseResult.receipt);
+      await downloadReceiptSlip(purchaseResult.receipt, { silent: true }).catch(() => {});
     }
-
-    setAccountPurchaseId(purchaseId);
-
     try {
-      await handleAccountDownload(purchaseId, { silent: true });
+      await handleAccountDownload(purchaseResult.purchaseId, { silent: true });
       setFeedback({
         type: "success",
         message: `Payment successful. "${listing.title}" is now downloading from your account access.`,
-        detail: "",
+        detail: "The payment slip was also prepared automatically.",
         showGuestDownload: false,
         showAccountDownload: true,
       });
@@ -374,7 +388,7 @@ export function PdfDetailPage() {
       setFeedback({
         type: "success",
         message: `Payment successful. "${listing.title}" is unlocked in your account.`,
-        detail: "Use the download button below if the file did not start automatically.",
+        detail: "Step 4 is ready. Use the download button below if the file did not start automatically.",
         showGuestDownload: false,
         showAccountDownload: true,
       });
@@ -382,22 +396,17 @@ export function PdfDetailPage() {
   }
 
   async function handlePublicPurchase() {
-    const normalizedGuestName = normalizeGuestName(guestFullName);
-    if (!normalizedGuestName) {
-      throw new Error("Enter your full name before continuing.");
-    }
+    if (!selectedBuyerName) throw new Error("Enter your full name before continuing.");
 
     const [RazorpayCheckout, orderResponse] = await Promise.all([
       loadRazorpayCheckout(),
-      createPublicMarketplaceOrder(listing.id, normalizedGuestName),
+      createPublicMarketplaceOrder(listing.id, selectedBuyerName),
     ]);
 
     const checkout = orderResponse.data?.checkout;
-    if (!checkout?.orderId || !checkout?.key) {
-      throw new Error("Payment checkout is not available right now. Please try again in a moment.");
-    }
+    if (!checkout?.orderId || !checkout?.key) throw new Error("Payment checkout is not available right now. Please try again in a moment.");
 
-    const nextGuestAccess = await new Promise((resolve, reject) => {
+    const verificationResult = await new Promise((resolve, reject) => {
       const razorpay = new RazorpayCheckout({
         key: checkout.key,
         amount: checkout.amount,
@@ -406,11 +415,9 @@ export function PdfDetailPage() {
         description: checkout.description,
         order_id: checkout.orderId,
         notes: checkout.notes,
-        prefill: checkout.prefill || { name: normalizedGuestName },
-        theme: { color: "#cc6f29" },
-        modal: {
-          ondismiss: () => reject(new Error("Payment was cancelled before completion.")),
-        },
+        prefill: checkout.prefill || { name: selectedBuyerName },
+        theme: { color: "#1f63ff" },
+        modal: { ondismiss: () => reject(new Error("Payment was cancelled before completion.")) },
         handler: async (response) => {
           try {
             const verificationResponse = await verifyPublicMarketplacePayment({
@@ -422,41 +429,41 @@ export function PdfDetailPage() {
             if (!verifiedGuestAccess?.purchaseId || !verifiedGuestAccess?.token) {
               throw new Error("Payment succeeded, but secure download access could not be prepared.");
             }
-            resolve({
-              ...verifiedGuestAccess,
-              buyerName: normalizedGuestName,
-            });
+            resolve({ guestAccess: { ...verifiedGuestAccess, buyerName: selectedBuyerName }, receipt: verificationResponse.data?.receipt || null });
           } catch (requestError) {
             reject(requestError);
           }
         },
       });
-
       razorpay.open();
     });
 
-    storeGuestPurchaseAccess(listing.id, nextGuestAccess);
-    setGuestAccess(nextGuestAccess);
-    setGuestFullName(normalizedGuestName);
+    storeGuestPurchaseAccess(listing.id, verificationResult.guestAccess);
+    setGuestAccess(verificationResult.guestAccess);
+    setGuestFullName(selectedBuyerName);
+    setWizardStep(4);
+    setPdfDownloadStatus("ready");
+    if (verificationResult.receipt) {
+      setReceiptSlip(verificationResult.receipt);
+      await downloadReceiptSlip(verificationResult.receipt, { silent: true }).catch(() => {});
+    }
     setFeedback({
       type: "success",
       message: `Payment successful. "${listing.title}" is ready to download.`,
-      detail: nextGuestAccess.expiresAt
-        ? `This guest download stays active in this tab until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
-        : "Use the download button below if the file does not start automatically.",
+      detail: verificationResult.guestAccess.expiresAt
+        ? `Guest access remains active until ${new Date(verificationResult.guestAccess.expiresAt).toLocaleString()}.`
+        : "Step 4 is now ready for your PDF download.",
       showGuestDownload: true,
       showAccountDownload: false,
     });
 
     try {
-      await handleGuestDownload(nextGuestAccess, { silent: true });
+      await handleGuestDownload(verificationResult.guestAccess, { silent: true });
     } catch {
       setFeedback({
         type: "success",
         message: `Payment successful. "${listing.title}" is unlocked.`,
-        detail: nextGuestAccess.expiresAt
-          ? `Use the download button below. Guest access remains active until ${new Date(nextGuestAccess.expiresAt).toLocaleString()}.`
-          : "Use the download button below.",
+        detail: "Use the step 4 download button below if the file did not start automatically.",
         showGuestDownload: true,
         showAccountDownload: false,
       });
@@ -464,15 +471,12 @@ export function PdfDetailPage() {
   }
 
   async function handlePurchase() {
-    if (!listing?.id) {
-      return;
-    }
-
-    if (isListingReleaseLocked(listing)) {
+    if (!listing?.id) return;
+    if (releaseLocked) {
       setFeedback({
         type: "error",
         message: `This PDF will unlock on ${formatMarketplaceDate(listing.releaseAt)}.`,
-        detail: "The countdown above is live. Download stays disabled until the scheduled release time arrives.",
+        detail: "Payment and download stay disabled until the scheduled release time arrives.",
         showGuestDownload: false,
         showAccountDownload: false,
       });
@@ -481,99 +485,146 @@ export function PdfDetailPage() {
 
     setFeedback(DEFAULT_FEEDBACK);
     setIsPurchasing(true);
-
+    setWizardStep(3);
     try {
-      if (isAuthenticated) {
-        await handleAuthenticatedPurchase();
-      } else {
-        await handlePublicPurchase();
-      }
+      if (isAuthenticated) await handleAuthenticatedPurchase();
+      else await handlePublicPurchase();
     } catch (requestError) {
       setFeedback({
         type: "error",
-        message: requestError.message || "Unable to complete the download flow.",
+        message: requestError.message || "Unable to complete the checkout flow.",
         detail: "",
         showGuestDownload: false,
         showAccountDownload: false,
       });
+      setPdfDownloadStatus("idle");
     } finally {
       setIsPurchasing(false);
     }
   }
 
-  function handlePrimaryAction() {
-    if (isListingReleaseLocked(listing)) {
-      return;
-    }
-
-    if (feedback.showGuestDownload && guestAccess) {
-      handleGuestDownload();
-      return;
-    }
-
-    if (feedback.showAccountDownload && accountPurchaseId) {
-      handleAccountDownload();
-      return;
-    }
-
-    handlePurchase();
+  function handleDownloadStepAction() {
+    if (feedback.showGuestDownload && guestAccess) return void handleGuestDownload();
+    if (feedback.showAccountDownload && accountPurchaseId) return void handleAccountDownload();
+    return void handlePurchase();
   }
 
-  function getPrimaryButtonLabel() {
-    const countdown = getCountdownParts(listing?.releaseAt, countdownNow);
-    if (isListingReleaseLocked(listing) && countdown) {
-      return `Download locked - ${countdown.shortLabel}`;
-    }
-
-    if (feedback.showGuestDownload && guestAccess) {
-      return isGuestDownloading ? "Preparing download..." : "Download PDF";
-    }
-
-    if (feedback.showAccountDownload && accountPurchaseId) {
-      return isAccountDownloading ? "Preparing download..." : "Download PDF";
-    }
-
-    if (isPurchasing) {
-      return "Opening secure download...";
-    }
-
+  function getDownloadButtonLabel() {
+    if (releaseLocked && releaseCountdown) return `Locked - ${releaseCountdown.shortLabel}`;
+    if (feedback.showGuestDownload && guestAccess) return isGuestDownloading ? "Preparing PDF..." : "Download PDF";
+    if (feedback.showAccountDownload && accountPurchaseId) return isAccountDownloading ? "Preparing PDF..." : "Download PDF";
+    if (isPurchasing) return "Opening secure payment...";
     return `Download PDF - Rs. ${listing?.priceInr || 0}`;
   }
+
+  useEffect(() => {
+    if (
+      !searchParams.get("buy") ||
+      !isAuthenticated ||
+      !accessToken ||
+      !listing?.id ||
+      !selectedBuyerName ||
+      releaseLocked ||
+      isLoading ||
+      autoPurchaseAttemptedRef.current
+    ) {
+      return;
+    }
+    autoPurchaseAttemptedRef.current = true;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("checkout", "1");
+    nextParams.delete("buy");
+    setSearchParams(nextParams, { replace: true });
+    setWizardStep(3);
+    handlePurchase();
+  }, [accessToken, isAuthenticated, isLoading, listing?.id, releaseLocked, searchParams, selectedBuyerName, setSearchParams]);
 
   const seoPayload = listing
     ? buildSeoPayload({
         title: listing.seoTitle || listing.title,
-        description:
-          listing.seoDescription ||
-          listing.description ||
-          "Compact exam-ready PDF listing with structured academic categorization.",
+        description: listing.seoDescription || listing.description || "Compact exam-ready PDF listing.",
         pathname: `/pdf/${listing.slug}`,
         type: "product",
         jsonLd: [
-          buildProductSchema({
-            title: listing.title,
-            description: listing.description,
-            pathname: `/pdf/${listing.slug}`,
-            priceInr: listing.priceInr,
-            sellerName: listing.sellerName,
-          }),
-          buildBreadcrumbSchema([
-            { label: "Home", href: "/" },
-            { label: "Marketplace", href: "/marketplace" },
-            { label: listing.title, href: `/pdf/${listing.slug}` },
-          ]),
+          buildProductSchema({ title: listing.title, description: listing.description, pathname: `/pdf/${listing.slug}`, priceInr: listing.priceInr, sellerName: listing.sellerName }),
+          buildBreadcrumbSchema([{ label: "Home", href: "/" }, { label: "Marketplace", href: "/marketplace" }, { label: listing.title, href: `/pdf/${listing.slug}` }]),
         ],
       })
     : null;
 
-  const releaseLocked = isListingReleaseLocked(listing, countdownNow);
-  const releaseCountdown = getCountdownParts(listing?.releaseAt, countdownNow);
-  const selectedBuyerName = normalizeGuestName(guestFullName);
-  const detailSummary =
-    listing?.description ||
-    "Enter your full name, continue to secure payment, and download this PDF from one clean page.";
-  const releaseLabel = formatMarketplaceDate(listing?.releaseAt || listing?.publishedAt || listing?.createdAt);
-  const coverAlt = `${listing?.title || "PDF"} cover`;
+  const detailSummary = listing?.description || "Open the secure flow, verify payment, download the payment slip automatically, and then download the PDF.";
+
+  function renderWizardPanel() {
+    if (wizardStep === 1) {
+      return (
+        <div className="pdf-checkout-panel-stack">
+          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 1</p><h2>Review the selected PDF</h2><p className="support-copy">Confirm the file, release time, and amount before moving ahead.</p></div>
+          <div className="pdf-checkout-status-grid">
+            <div className="pdf-checkout-status-card"><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
+            <div className="pdf-checkout-status-card"><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
+          </div>
+          {releaseLocked ? <div className="simple-release-lock-card"><span className="info-label">Scheduled release</span><strong>{formatMarketplaceDate(listing?.releaseAt)}</strong>{releaseCountdown ? <strong className="simple-release-countdown">{releaseCountdown.shortLabel}</strong> : null}</div> : null}
+          <div className="pdf-checkout-bullet-list">
+            <div className="pdf-checkout-bullet-item"><i className="bi bi-check2-circle" /><span>One selected PDF only.</span></div>
+            <div className="pdf-checkout-bullet-item"><i className="bi bi-file-earmark-person" /><span>Name gets embedded multiple times inside the PDF.</span></div>
+            <div className="pdf-checkout-bullet-item"><i className="bi bi-receipt-cutoff" /><span>Receipt downloads first, then the PDF step unlocks.</span></div>
+          </div>
+          <div className="pdf-checkout-actions">
+            <button className="button secondary" onClick={closeCheckoutWizard} type="button"><i className="bi bi-arrow-left" />Back</button>
+            <button className="button primary" onClick={() => setWizardStep(2)} type="button"><i className="bi bi-arrow-right-circle" />Continue</button>
+          </div>
+        </div>
+      );
+    }
+
+    if (wizardStep === 2) {
+      return (
+        <div className="pdf-checkout-panel-stack">
+          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 2</p><h2>Enter full name</h2><p className="support-copy">The same name is used for buyer identity, receipt slip, and PDF personalization.</p></div>
+          <label className="field"><span>Full name</span><input autoComplete="name" className="input" disabled={isPurchasing} onChange={(event) => setGuestFullName(event.target.value)} placeholder="Enter your full name" type="text" value={guestFullName} /></label>
+          <div className="simple-personalization-note pdf-checkout-personalization"><span className="info-label">PDF personalization preview</span><strong>{selectedBuyerName || "Your full name"}</strong></div>
+          <div className="pdf-checkout-actions">
+            <button className="button secondary" onClick={() => setWizardStep(1)} type="button"><i className="bi bi-arrow-left" />Previous</button>
+            <button className="button primary" onClick={() => (selectedBuyerName ? setWizardStep(3) : setFeedback({ type: "error", message: "Enter your full name before moving to secure payment.", detail: "", showGuestDownload: false, showAccountDownload: false }))} type="button"><i className="bi bi-shield-check" />Continue to payment</button>
+          </div>
+        </div>
+      );
+    }
+
+    if (wizardStep === 3) {
+      return (
+        <div className="pdf-checkout-panel-stack">
+          <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 3</p><h2>Secure payment</h2><p className="support-copy">Secure Razorpay checkout opens next. After verification, the payment slip downloads automatically.</p></div>
+          <div className="pdf-checkout-status-grid">
+            <div className="pdf-checkout-status-card"><span className="info-label">Selected file</span><strong>{listing?.title || "PDF"}</strong></div>
+            <div className="pdf-checkout-status-card"><span className="info-label">Buyer name</span><strong>{selectedBuyerName || "Not entered yet"}</strong></div>
+            <div className="pdf-checkout-status-card"><span className="info-label">Payment method</span><strong>Secure Razorpay</strong></div>
+            <div className="pdf-checkout-status-card"><span className="info-label">Amount</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
+          </div>
+          {feedback.message ? <div className="stack-section"><p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>{feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}</div> : <div className="pdf-checkout-notice"><i className="bi bi-lock-fill" /><div><strong>Secure checkout only</strong><p>Download unlocks only after payment verification completes.</p></div></div>}
+          <div className="pdf-checkout-actions">
+            <button className="button secondary" disabled={isPurchasing} onClick={() => setWizardStep(2)} type="button"><i className="bi bi-arrow-left" />Previous</button>
+            <button className="button primary animated-download-button" disabled={releaseLocked || isPurchasing} onClick={handlePurchase} type="button"><i className="bi bi-credit-card-2-front download-button-icon" />{isPurchasing ? "Opening secure payment..." : `Pay securely - Rs. ${listing?.priceInr || 0}`}</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="pdf-checkout-panel-stack">
+        <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 4</p><h2>Download your files</h2><p className="support-copy">The payment slip is generated first, then the PDF download starts automatically.</p></div>
+        <div className="pdf-checkout-status-grid">
+          <div className="pdf-checkout-status-card"><span className="info-label">Receipt slip</span><strong>{receiptStatus === "downloaded" ? "Downloaded" : receiptStatus === "downloading" ? "Preparing..." : receiptSlip ? "Ready" : "Not generated"}</strong></div>
+          <div className="pdf-checkout-status-card"><span className="info-label">PDF file</span><strong>{pdfDownloadStatus === "downloaded" ? "Download started" : pdfDownloadStatus === "downloading" ? "Preparing..." : hasDownloadAccess ? "Ready" : "Locked"}</strong></div>
+        </div>
+        {feedback.message ? <div className="stack-section"><p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>{feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}</div> : null}
+        <div className="pdf-checkout-actions">
+          {receiptSlip ? <button className="button secondary" onClick={() => downloadReceiptSlip(receiptSlip)} type="button"><i className="bi bi-receipt-cutoff" />Download payment slip</button> : null}
+          <button className="button primary full-width animated-download-button" disabled={releaseLocked || isPurchasing || isGuestDownloading || isAccountDownloading} onClick={handleDownloadStepAction} type="button"><i className={`bi ${releaseLocked ? "bi-lock" : "bi-download"} download-button-icon${releaseLocked ? " is-locked" : ""}`} />{getDownloadButtonLabel()}</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -583,102 +634,72 @@ export function PdfDetailPage() {
       ) : error ? (
         <EmptyStateCard title="PDF unavailable" description={error} />
       ) : (
-        <section className="stack-section simple-pdf-detail-page">
-          <article className="detail-card simple-pdf-detail-shell">
-            <div className="simple-pdf-detail-headline">
-              <Link className="inline-link-chip" to="/marketplace">
-                <i className="bi bi-arrow-left" />
-                Back to marketplace
-              </Link>
-              <p className="eyebrow">Selected PDF</p>
-              <h1>{listing?.title || slug || "PDF"}</h1>
-              <p className="support-copy">{detailSummary}</p>
-            </div>
+        <>
+          <section className="stack-section simple-pdf-detail-page">
+            <article className="detail-card simple-pdf-detail-shell">
+              <div className="simple-pdf-detail-headline">
+                <Link className="inline-link-chip" to="/marketplace"><i className="bi bi-arrow-left" />Back to marketplace</Link>
+                <p className="eyebrow">Selected PDF</p>
+                <h1>{listing?.title || slug || "PDF"}</h1>
+                <p className="support-copy">{detailSummary}</p>
+              </div>
+              <div className="simple-pdf-detail-body">
+                <article className="detail-card simple-pdf-detail-summary">
+                  {listing?.coverImageUrl ? <div className="simple-pdf-cover"><img alt={coverAlt} className="simple-pdf-cover-image" src={listing.coverImageUrl} /></div> : null}
+                  <div className="simple-pdf-detail-summary-row">
+                    <div><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
+                    <div><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
+                  </div>
+                  <p className="support-copy">Open the full-screen guided flow to review, pay, download the slip, and then download the PDF.</p>
+                </article>
+                <article className="detail-card simple-pdf-download-panel">
+                  <p className="eyebrow">Secure checkout</p>
+                  <h2>Open the full-screen download flow</h2>
+                  <p className="support-copy">Review the selected PDF, enter your full name, complete secure payment, and then download the file.</p>
+                  <button className="button primary full-width" onClick={() => openCheckoutWizard(1)} type="button"><i className="bi bi-stars" />Start secure steps</button>
+                </article>
+              </div>
+            </article>
+          </section>
 
-            <div className="simple-pdf-detail-body">
-              <article className="detail-card simple-pdf-detail-summary">
-                {listing?.coverImageUrl ? (
-                  <div className="simple-pdf-cover">
-                    <img alt={coverAlt} className="simple-pdf-cover-image" src={listing.coverImageUrl} />
-                  </div>
-                ) : null}
-                <div className="simple-pdf-detail-summary-row">
-                  <div>
-                    <span className="info-label">Price</span>
-                    <strong>Rs. {listing?.priceInr || 0}</strong>
-                  </div>
-                  <div>
-                    <span className="info-label">Release</span>
-                    <strong>{releaseLabel || "-"}</strong>
+          {isCheckoutOpen ? (
+            <div className="pdf-checkout-overlay" onClick={closeCheckoutWizard} role="presentation">
+              <div aria-labelledby="pdf-checkout-title" aria-modal="true" className="pdf-checkout-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+                <div className="pdf-checkout-header">
+                  <div><p className="eyebrow">Secure PDF download</p><h2 id="pdf-checkout-title">{listing?.title || "Selected PDF"}</h2></div>
+                  <button className="pdf-checkout-close" onClick={closeCheckoutWizard} type="button"><i className="bi bi-x-lg" /></button>
+                </div>
+                <div className="pdf-checkout-progress">
+                  <div className="pdf-checkout-progress-bar"><span style={{ width: `${progressValue}%` }} /></div>
+                  <div className="pdf-checkout-stepper" role="list">
+                    {STEPS.map((step) => {
+                      const state = getStepState(step.id, wizardStep, hasDownloadAccess, pdfDownloadStatus);
+                      return (
+                        <div className={`pdf-checkout-step ${state}`} key={step.id} role="listitem">
+                          <span className="pdf-checkout-step-icon"><i className={`bi ${state === "complete" ? "bi-check2" : step.icon}`} /></span>
+                          <div className="pdf-checkout-step-copy"><strong>{step.title}</strong><small>{step.label}</small></div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <p className="support-copy">
-                  The name you enter here will be embedded multiple times inside the downloaded PDF after payment verification.
-                </p>
-                {selectedBuyerName ? (
-                  <div className="simple-personalization-note">
-                    <span className="info-label">Personalized for</span>
-                    <strong>{selectedBuyerName}</strong>
-                  </div>
-                ) : null}
-              </article>
-
-              <article className="detail-card simple-pdf-download-panel">
-                <p className="eyebrow">Download PDF</p>
-                <h2>Enter full name and continue</h2>
-
-                {releaseLocked ? (
-                  <div className="simple-release-lock-card">
-                    <span className="info-label">Scheduled release</span>
-                    <strong>{formatMarketplaceDate(listing?.releaseAt)}</strong>
-                    <p className="support-copy">Download stays locked until the exact go-live time.</p>
-                    {releaseCountdown ? <strong className="simple-release-countdown">{releaseCountdown.shortLabel}</strong> : null}
-                  </div>
-                ) : null}
-
-                <label className="field">
-                  <span>Full name</span>
-                  <input
-                    autoComplete="name"
-                    className="input"
-                    disabled={isPurchasing}
-                    onChange={(event) => setGuestFullName(event.target.value)}
-                    placeholder="Enter your full name"
-                    type="text"
-                    value={guestFullName}
-                  />
-                </label>
-
-                {feedback.message ? (
-                  <div className="stack-section">
-                    <p className={feedback.type === "error" ? "form-error" : "form-success"}>{feedback.message}</p>
-                    {feedback.detail ? <p className="support-copy">{feedback.detail}</p> : null}
-                  </div>
-                ) : null}
-
-                <button
-                  className="button primary full-width animated-download-button"
-                  disabled={releaseLocked || isPurchasing || isGuestDownloading || isAccountDownloading}
-                  onClick={handlePrimaryAction}
-                  type="button"
-                >
-                  <i
-                    className={`bi ${releaseLocked ? "bi-lock" : "bi-download"} download-button-icon${
-                      releaseLocked ? " is-locked" : ""
-                    }`}
-                  />
-                  {getPrimaryButtonLabel()}
-                </button>
-
-                <p className="support-copy">
-                  {isAuthenticated
-                    ? "Your entered full name will stay attached to this purchase and the downloaded PDF will be personalized from your secure account access."
-                    : "Guest download asks only for your full name here. Payment stays inside secure Razorpay checkout and the PDF unlocks only after verification."}
-                </p>
-              </article>
+                <div className="pdf-checkout-main">
+                  <aside className="pdf-checkout-preview detail-card">
+                    <p className="eyebrow">Selected PDF</p>
+                    {listing?.coverImageUrl ? <div className="simple-pdf-cover pdf-checkout-cover"><img alt={coverAlt} className="simple-pdf-cover-image" src={listing.coverImageUrl} /></div> : null}
+                    <div className="pdf-checkout-preview-copy"><h3>{listing?.title || "PDF"}</h3><p className="support-copy">{detailSummary}</p></div>
+                    <div className="pdf-checkout-mini-grid">
+                      <div><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
+                      <div><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
+                    </div>
+                    <div className="pdf-checkout-preview-note"><i className="bi bi-shield-check" /><p>Payment slip first, personalized PDF next. The whole flow stays inside one guided checkout.</p></div>
+                  </aside>
+                  <section className="pdf-checkout-panel detail-card">{renderWizardPanel()}</section>
+                </div>
+              </div>
             </div>
-          </article>
-        </section>
+          ) : null}
+        </>
       )}
     </>
   );

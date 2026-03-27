@@ -25,6 +25,7 @@ import { pdfGenerationService } from "../pdf/pdfGeneration.service.js";
 import { purchaseService } from "../purchase/purchase.service.js";
 import { getModeAccessSnapshot, isDeveloperUnlocked } from "../../utils/userMode.js";
 import { ensureReleasedOrThrow } from "../../utils/marketplaceAvailability.js";
+import { createMarketplaceReceiptDownload } from "../../utils/paymentReceipt.js";
 
 const PRIVATE_PDF_PRICE = 4;
 const GUEST_PURCHASE_ACCESS_TTL_MS = 1000 * 60 * 60 * 24;
@@ -928,9 +929,17 @@ export const paymentService = {
       .populate("sellerId", "name sellerProfile");
 
     if (existingPurchase && payment.status === PAYMENT_STATUS.PAID) {
+      const receipt = await createMarketplaceReceiptDownload({
+        buyerName: existingPurchase.downloadBuyerName || payment.downloadBuyerName,
+        listing,
+        payment,
+        purchase: existingPurchase,
+      });
+
       return {
         payment: serializePayment(payment),
         purchase: purchaseService.serializePurchase(existingPurchase),
+        receipt,
       };
     }
 
@@ -1046,9 +1055,17 @@ export const paymentService = {
       });
     }
 
+    const receipt = await createMarketplaceReceiptDownload({
+      buyerName: populatedPurchase.downloadBuyerName || payment.downloadBuyerName,
+      listing,
+      payment,
+      purchase: populatedPurchase,
+    });
+
     return {
       payment: serializePayment(payment),
       purchase: purchaseService.serializePurchase(populatedPurchase),
+      receipt,
     };
   },
 
@@ -1071,10 +1088,17 @@ export const paymentService = {
 
     if (purchase && payment.status === PAYMENT_STATUS.PAID) {
       const guestAccess = await issueGuestPurchaseAccess(purchase);
+      const receipt = await createMarketplaceReceiptDownload({
+        buyerName: purchase.downloadBuyerName || payment.downloadBuyerName || payment.guestBuyerName,
+        listing,
+        payment,
+        purchase,
+      });
       return {
         payment: serializePayment(payment),
         purchase: purchaseService.serializePurchase(purchase),
         guestAccess,
+        receipt,
       };
     }
 
@@ -1181,10 +1205,18 @@ export const paymentService = {
       });
     }
 
+    const receipt = await createMarketplaceReceiptDownload({
+      buyerName: populatedPurchase.downloadBuyerName || payment.downloadBuyerName || payment.guestBuyerName,
+      listing,
+      payment,
+      purchase: populatedPurchase,
+    });
+
     return {
       payment: serializePayment(payment),
       purchase: purchaseService.serializePurchase(populatedPurchase),
       guestAccess,
+      receipt,
     };
   },
 };
