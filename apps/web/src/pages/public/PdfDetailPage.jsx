@@ -559,9 +559,12 @@ export function PdfDetailPage() {
       return (
         <div className="pdf-checkout-panel-stack">
           <div className="pdf-checkout-copy-block"><p className="eyebrow">Step 1</p><h2>Review the selected PDF</h2><p className="support-copy">Confirm the file, release time, and amount before moving ahead.</p></div>
-          <div className="pdf-checkout-status-grid">
-            <div className="pdf-checkout-status-card"><span className="info-label">Price</span><strong>Rs. {listing?.priceInr || 0}</strong></div>
-            <div className="pdf-checkout-status-card"><span className="info-label">Release</span><strong>{releaseLabel || "-"}</strong></div>
+          <div className="pdf-checkout-stage-note">
+            <i className="bi bi-file-check" />
+            <div>
+              <strong>Selected PDF is locked in</strong>
+              <p>You are checking out only this file. Price and release info stay visible in the summary card.</p>
+            </div>
           </div>
           {releaseLocked ? <div className="simple-release-lock-card"><span className="info-label">Scheduled release</span><strong>{formatMarketplaceDate(listing?.releaseAt)}</strong>{releaseCountdown ? <strong className="simple-release-countdown">{releaseCountdown.shortLabel}</strong> : null}</div> : null}
           <div className="pdf-checkout-bullet-list">
