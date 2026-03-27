@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import PDFDocument from "pdfkit";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("en-IN", {
@@ -11,6 +14,10 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-IN", {
   timeStyle: "short",
   timeZone: "Asia/Kolkata",
 });
+
+const RECEIPT_SHAYARI_IMAGE_PATH = fileURLToPath(
+  new URL("../assets/receipt/receipt-shayari-hi.png", import.meta.url),
+);
 
 function formatCurrency(amountInr) {
   return CURRENCY_FORMATTER.format(Number(amountInr || 0));
@@ -77,6 +84,68 @@ function drawMetaCard(document, x, y, width, label, value) {
     .fontSize(13)
     .font("Helvetica-Bold")
     .text(String(value || "-"), x + 14, y + 28, { width: width - 28 });
+}
+
+function drawFittedAmount(document, value, x, y, width) {
+  const textValue = String(value || "-");
+  let fontSize = 24;
+
+  document.font("Helvetica-Bold");
+
+  while (fontSize > 15) {
+    document.fontSize(fontSize);
+    if (document.widthOfString(textValue) <= width) {
+      break;
+    }
+    fontSize -= 1;
+  }
+
+  document
+    .fillColor("#168A63")
+    .fontSize(fontSize)
+    .font("Helvetica-Bold")
+    .text(textValue, x, y, {
+      width,
+      align: "right",
+    });
+}
+
+function drawShayariBand(document, x, y, width) {
+  document
+    .save()
+    .roundedRect(x, y, width, 84, 22)
+    .fillAndStroke("#FFF9EE", "#FFE3B6")
+    .restore();
+
+  document
+    .fillColor("#C17A00")
+    .fontSize(10)
+    .font("Helvetica-Bold")
+    .text("EXAM SHAYARI", x + 20, y + 12, { characterSpacing: 1.2 });
+
+  if (fs.existsSync(RECEIPT_SHAYARI_IMAGE_PATH)) {
+    document.image(RECEIPT_SHAYARI_IMAGE_PATH, x + 20, y + 26, {
+      width: width - 40,
+    });
+    return;
+  }
+
+  document
+    .fillColor("#193154")
+    .fontSize(12)
+    .font("Helvetica-Bold")
+    .text("Padhai ka mood bana, receipt bhi saath lai.", x + 20, y + 34, {
+      width: width - 40,
+      align: "center",
+    });
+  document
+    .fillColor("#1F63FF")
+    .fontSize(11)
+    .font("Helvetica")
+    .text("PDF mil gayi, ab tension gayi bhai.", x + 20, y + 52, {
+      width: width - 40,
+      align: "center",
+    });
 }
 
 export async function createMarketplaceReceiptDownload({
@@ -161,18 +230,17 @@ export async function createMarketplaceReceiptDownload({
       .fillColor("#142C57")
       .fontSize(22)
       .font("Helvetica-Bold")
-      .text(customerName, 66, 308, { width: 300 });
+      .text(customerName, 66, 308, { width: 286 });
 
     document
       .fillColor("#6A83AF")
       .fontSize(10)
       .font("Helvetica-Bold")
-      .text("TOTAL PAID", 402, 290);
-    document
-      .fillColor("#168A63")
-      .fontSize(24)
-      .font("Helvetica-Bold")
-      .text(INR, 402, 308, { width: 110, align: "right" });
+      .text("TOTAL PAID", 364, 290, {
+        width: 160,
+        align: "right",
+      });
+    drawFittedAmount(document, amount, 350, 308, 174);
 
     drawMetaCard(document, 42, 402, 246, "Verified at", formatDateTime(verifiedAt));
     drawMetaCard(document, 306, 402, 246, "Payment ID", paymentId);
@@ -181,7 +249,7 @@ export async function createMarketplaceReceiptDownload({
 
     document
       .save()
-      .roundedRect(42, 564, 510, 138, 26)
+      .roundedRect(42, 564, 510, 124, 26)
       .fillAndStroke("#F8FBFF", "#DCE9FF")
       .restore();
 
@@ -212,6 +280,8 @@ export async function createMarketplaceReceiptDownload({
         .text(point, 82, rowY - 1, { width: 440 });
     });
 
+    drawShayariBand(document, 42, 706, 510);
+
     document
       .fillColor("#6B7FA3")
       .fontSize(9.5)
@@ -219,7 +289,7 @@ export async function createMarketplaceReceiptDownload({
       .text(
         "Generated automatically by ExamNova AI marketplace checkout. This slip is for purchase reference and support only.",
         42,
-        744,
+        802,
         {
           width: 510,
           align: "center",
