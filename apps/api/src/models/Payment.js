@@ -13,6 +13,7 @@ const paymentSchema = new mongoose.Schema(
     generatedPdfId: { type: mongoose.Schema.Types.ObjectId, ref: "GeneratedPdf", index: true },
     adminUploadId: { type: mongoose.Schema.Types.ObjectId, ref: "AdminUploadedPdf", index: true },
     listingId: { type: mongoose.Schema.Types.ObjectId, ref: "MarketplaceListing", index: true },
+    serviceListingId: { type: mongoose.Schema.Types.ObjectId, ref: "ServiceListing", index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
     purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: "Purchase", index: true },
     amountInr: { type: Number, required: true },
@@ -41,5 +42,6 @@ const paymentSchema = new mongoose.Schema(
 
 paymentSchema.index({ userId: 1, generatedPdfId: 1, status: 1 });
 paymentSchema.index({ buyerMode: 1, listingId: 1, status: 1 });
+paymentSchema.index({ buyerMode: 1, serviceListingId: 1, status: 1 });
 
 export const Payment = mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

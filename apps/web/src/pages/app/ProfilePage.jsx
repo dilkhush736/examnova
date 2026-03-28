@@ -102,10 +102,10 @@ export function ProfilePage() {
     },
     {
       title: "Study workspace",
-      description: "Everything related to buying and generating PDFs stays grouped here so first-time users know what to open next.",
+      description: "Everything related to buying PDFs, website services, and generating notes stays grouped here so first-time users know what to open next.",
       links: [
-        { to: "/marketplace", label: "Marketplace", meta: "Browse and buy uploaded PDFs", value: "Public entry" },
-        { to: "/app/purchased-pdfs", label: "Purchased PDFs", meta: "Your buyer library and downloads", value: renderMetricValue(counters.purchasedPdfs) },
+        { to: "/marketplace", label: "Marketplace", meta: "Browse exam PDFs, notes, and services", value: "Public entry" },
+        { to: "/app/purchased-pdfs", label: "Purchased library", meta: "Your buyer library and downloads", value: renderMetricValue(counters.purchasedPdfs) },
         { to: "/app/upload-generate", label: "Generate PDFs", meta: "Upload source files and run the AI workflow", value: "Professional" },
         { to: "/app/generated-pdfs", label: "Generated PDFs", meta: "Open AI-generated outputs from your account", value: renderMetricValue(counters.generatedPdfs) },
       ],
@@ -133,7 +133,7 @@ export function ProfilePage() {
       <PageHero
         eyebrow="User control center"
         title="Manage your account from one organized place"
-        description="Profile details, account overview, mode status, bought PDFs, generated PDFs, listed PDFs, wallet, withdrawals, notifications, and settings are grouped here so the workspace feels clear instead of scattered."
+        description="Profile details, account overview, mode status, bought PDFs and services, generated PDFs, listed PDFs, wallet, withdrawals, notifications, and settings are grouped here so the workspace feels clear instead of scattered."
         metrics={[
           { label: "Current mode", value: MODE_LABELS[modeAccess.currentMode] },
           { label: "Profile", value: `${profileCompletionPercent}% complete` },
@@ -166,7 +166,7 @@ export function ProfilePage() {
             <div><span className="info-label">Role</span><strong>{user.role}</strong></div>
             <div><span className="info-label">Status</span><strong>{user.status}</strong></div>
             <div><span className="info-label">Email verified</span><strong>{user.isEmailVerified ? "Yes" : "No"}</strong></div>
-            <div><span className="info-label">Purchased PDFs</span><strong>{counters.purchasedPdfs ?? 0}</strong></div>
+            <div><span className="info-label">Purchased library</span><strong>{counters.purchasedPdfs ?? 0}</strong></div>
             <div><span className="info-label">Generated PDFs</span><strong>{counters.generatedPdfs ?? 0}</strong></div>
           </div>
           <div className="hero-actions">
@@ -284,7 +284,7 @@ export function ProfilePage() {
           <InfoGridCard
             title="Library and seller stats"
             items={[
-              { label: "Purchased PDFs", value: counters.purchasedPdfs ?? 0 },
+              { label: "Purchased library", value: counters.purchasedPdfs ?? 0 },
               { label: "Generated PDFs", value: counters.generatedPdfs ?? 0 },
               { label: "Listed PDFs", value: counters.listedPdfs ?? 0 },
               { label: "Wallet balance", value: `Rs. ${wallet.availableBalance ?? 0}` },

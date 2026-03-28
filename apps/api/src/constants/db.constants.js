@@ -8,6 +8,7 @@ export const COLLECTION_NAMES = {
   GENERATED_PDFS: "generated_pdfs",
   PAYMENTS: "payments",
   MARKETPLACE_LISTINGS: "marketplace_listings",
+  SERVICE_LISTINGS: "service_listings",
   PURCHASES: "purchases",
   WALLET_TRANSACTIONS: "wallet_transactions",
   WITHDRAWAL_REQUESTS: "withdrawal_requests",

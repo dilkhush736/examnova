@@ -14,6 +14,7 @@ import {
   MarketplaceListing,
   Payment,
   Purchase,
+  ServiceListing,
   User,
   WalletTransaction,
 } from "../../models/index.js";
@@ -102,7 +103,7 @@ async function createProviderOrder({ entityId, amountInr, notes, userMessage, co
 
   try {
     const order =
-      contextType === PAYMENT_CONTEXT_TYPES.MARKETPLACE
+      contextType === PAYMENT_CONTEXT_TYPES.MARKETPLACE || contextType === PAYMENT_CONTEXT_TYPES.SERVICE_ASSET
         ? await paymentClient.createMarketplaceOrder({
           listingId: entityId,
           amountInr,
@@ -141,6 +142,7 @@ function serializePayment(record) {
     contextType: record.contextType || "private_pdf",
     generatedPdfId: record.generatedPdfId?._id?.toString?.() || record.generatedPdfId?.toString?.() || null,
     listingId: record.listingId?._id?.toString?.() || record.listingId?.toString?.() || null,
+    serviceListingId: record.serviceListingId?._id?.toString?.() || record.serviceListingId?.toString?.() || null,
     sellerId: record.sellerId?._id?.toString?.() || record.sellerId?.toString?.() || null,
     amountInr: record.amountInr,
     currency: record.currency,
@@ -257,8 +259,32 @@ async function findPurchasableListing(listingId) {
   return listing;
 }
 
+async function findPurchasableService(serviceId) {
+  const service = await ServiceListing.findOne({
+    _id: serviceId,
+    isDeleted: { $ne: true },
+    visibility: "published",
+  });
+
+  if (!service) {
+    throw new ApiError(404, "Website service is not available for purchase.");
+  }
+
+  if (!service.zipStorageKey) {
+    throw new ApiError(400, "Website service does not have a downloadable ZIP package.");
+  }
+
+  return service;
+}
+
 function normalizeBuyerName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, 80);
+}
+
+function getCurrentServicePrice(service) {
+  const basePrice = Number(service?.priceInr || 0);
+  const offerPrice = Number(service?.offerPriceInr || 0);
+  return offerPrice > 0 && offerPrice < basePrice ? offerPrice : basePrice;
 }
 
 async function issueGuestPurchaseAccess(purchase) {
@@ -910,6 +936,210 @@ export const paymentService = {
     };
   },
 
+  async createServiceOrder(userId, serviceId, fullName) {
+    const service = await findPurchasableService(serviceId);
+    const downloadBuyerName = normalizeBuyerName(fullName);
+    const currentPrice = getCurrentServicePrice(service);
+
+    const existingPurchase = await Purchase.findOne({
+      buyerId: userId,
+      serviceListingId: service._id,
+      purchaseType: PURCHASE_TYPES.SERVICE_ASSET,
+      status: "completed",
+      buyerAccessState: "granted",
+    })
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
+      .populate("sellerId", "name sellerProfile");
+
+    if (existingPurchase) {
+      if (downloadBuyerName && existingPurchase.downloadBuyerName !== downloadBuyerName) {
+        existingPurchase.downloadBuyerName = downloadBuyerName;
+        await existingPurchase.save();
+      }
+
+      return {
+        alreadyOwned: true,
+        purchase: purchaseService.serializePurchase(existingPurchase),
+        payment: null,
+        checkout: null,
+      };
+    }
+
+    const existingPendingPayment = await Payment.findOne({
+      userId,
+      serviceListingId: service._id,
+      status: PAYMENT_STATUS.PENDING,
+    }).sort({ createdAt: -1 });
+
+    if (existingPendingPayment?.razorpayOrderId) {
+      if (downloadBuyerName && existingPendingPayment.downloadBuyerName !== downloadBuyerName) {
+        existingPendingPayment.downloadBuyerName = downloadBuyerName;
+        await existingPendingPayment.save();
+      }
+
+      const paymentClient = getPaymentClient();
+
+      return {
+        alreadyOwned: false,
+        purchase: null,
+        payment: serializePayment(existingPendingPayment),
+        checkout: buildCheckoutPayload(paymentClient, {
+          amountInr: existingPendingPayment.amountInr,
+          currency: existingPendingPayment.currency,
+          orderId: existingPendingPayment.razorpayOrderId,
+          description: `Website service purchase for ${service.title}`,
+          notes: {
+            contextType: PURCHASE_TYPES.SERVICE_ASSET,
+            serviceId: service._id.toString(),
+          },
+          prefill: {
+            name: downloadBuyerName,
+          },
+        }),
+      };
+    }
+
+    const { order, paymentClient } = await createProviderOrder({
+      entityId: service._id,
+      amountInr: currentPrice,
+      contextType: PAYMENT_CONTEXT_TYPES.SERVICE_ASSET,
+      notes: {
+        contextType: PURCHASE_TYPES.SERVICE_ASSET,
+        serviceId: service._id.toString(),
+        buyerId: userId.toString(),
+      },
+      userMessage: "Unable to start the website service payment right now. Please try again in a moment.",
+    });
+
+    const payment = await Payment.create({
+      userId,
+      purpose: PAYMENT_PURPOSES.SERVICE_ASSET,
+      contextType: PAYMENT_CONTEXT_TYPES.SERVICE_ASSET,
+      targetId: service._id,
+      serviceListingId: service._id,
+      sellerId: service.adminId,
+      amountInr: currentPrice,
+      currency: order.currency || "INR",
+      provider: "razorpay",
+      status: PAYMENT_STATUS.PENDING,
+      unlockStatus: "locked",
+      razorpayOrderId: order.id,
+      orderReceipt: order.receipt || "",
+      downloadBuyerName,
+    });
+
+    return {
+      alreadyOwned: false,
+      purchase: null,
+      payment: serializePayment(payment),
+      checkout: buildCheckoutPayload(paymentClient, {
+        amountInr: currentPrice,
+        currency: order.currency || "INR",
+        orderId: order.id,
+        description: `Website service purchase for ${service.title}`,
+        notes: {
+          contextType: PURCHASE_TYPES.SERVICE_ASSET,
+          serviceId: service._id.toString(),
+        },
+        prefill: {
+          name: downloadBuyerName,
+        },
+      }),
+    };
+  },
+
+  async createPublicServiceOrder(serviceId, fullName) {
+    const service = await findPurchasableService(serviceId);
+    const guestBuyerName = normalizeBuyerName(fullName);
+    const guestIdentityId = new mongoose.Types.ObjectId();
+    const currentPrice = getCurrentServicePrice(service);
+
+    const existingPendingPayment = await Payment.findOne({
+      buyerMode: "guest",
+      guestBuyerName,
+      serviceListingId: service._id,
+      status: PAYMENT_STATUS.PENDING,
+    }).sort({ createdAt: -1 });
+
+    if (existingPendingPayment?.razorpayOrderId) {
+      if (existingPendingPayment.downloadBuyerName !== guestBuyerName) {
+        existingPendingPayment.downloadBuyerName = guestBuyerName;
+        await existingPendingPayment.save();
+      }
+
+      const paymentClient = getPaymentClient();
+
+      return {
+        alreadyOwned: false,
+        purchase: null,
+        payment: serializePayment(existingPendingPayment),
+        checkout: buildCheckoutPayload(paymentClient, {
+          amountInr: existingPendingPayment.amountInr,
+          currency: existingPendingPayment.currency,
+          orderId: existingPendingPayment.razorpayOrderId,
+          description: `Website service purchase for ${service.title}`,
+          notes: {
+            contextType: PURCHASE_TYPES.SERVICE_ASSET,
+            serviceId: service._id.toString(),
+          },
+          prefill: {
+            name: guestBuyerName,
+          },
+        }),
+      };
+    }
+
+    const { order, paymentClient } = await createProviderOrder({
+      entityId: service._id,
+      amountInr: currentPrice,
+      contextType: PAYMENT_CONTEXT_TYPES.SERVICE_ASSET,
+      notes: {
+        contextType: PURCHASE_TYPES.SERVICE_ASSET,
+        serviceId: service._id.toString(),
+        guestBuyerName,
+      },
+      userMessage: "Unable to start the public website service payment right now. Please try again in a moment.",
+    });
+
+    const payment = await Payment.create({
+      userId: guestIdentityId,
+      buyerMode: "guest",
+      guestBuyerName,
+      downloadBuyerName: guestBuyerName,
+      purpose: PAYMENT_PURPOSES.SERVICE_ASSET,
+      contextType: PAYMENT_CONTEXT_TYPES.SERVICE_ASSET,
+      targetId: service._id,
+      serviceListingId: service._id,
+      sellerId: service.adminId,
+      amountInr: currentPrice,
+      currency: order.currency || "INR",
+      provider: "razorpay",
+      status: PAYMENT_STATUS.PENDING,
+      unlockStatus: "locked",
+      razorpayOrderId: order.id,
+      orderReceipt: order.receipt || "",
+    });
+
+    return {
+      alreadyOwned: false,
+      purchase: null,
+      payment: serializePayment(payment),
+      checkout: buildCheckoutPayload(paymentClient, {
+        amountInr: currentPrice,
+        currency: order.currency || "INR",
+        orderId: order.id,
+        description: `Website service purchase for ${service.title}`,
+        notes: {
+          contextType: PURCHASE_TYPES.SERVICE_ASSET,
+          serviceId: service._id.toString(),
+        },
+        prefill: {
+          name: guestBuyerName,
+        },
+      }),
+    };
+  },
+
   async verifyMarketplacePayment(userId, payload) {
     const payment = await findPendingPaymentForOrder(payload.orderId);
 
@@ -1217,6 +1447,224 @@ export const paymentService = {
       purchase: purchaseService.serializePurchase(populatedPurchase),
       guestAccess,
       receipt,
+    };
+  },
+
+  async verifyServicePayment(userId, payload) {
+    const payment = await findPendingPaymentForOrder(payload.orderId);
+
+    if (String(payment.userId) !== String(userId)) {
+      throw new ApiError(403, "You cannot verify another user's website service payment.");
+    }
+
+    const service = await findPurchasableService(payment.serviceListingId);
+
+    const existingPurchase = await Purchase.findOne({
+      buyerId: userId,
+      serviceListingId: service._id,
+      purchaseType: PURCHASE_TYPES.SERVICE_ASSET,
+      status: "completed",
+      buyerAccessState: "granted",
+    })
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
+      .populate("sellerId", "name sellerProfile");
+
+    if (existingPurchase && payment.status === PAYMENT_STATUS.PAID) {
+      return {
+        payment: serializePayment(payment),
+        purchase: purchaseService.serializePurchase(existingPurchase),
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING && !existingPurchase) {
+      throw new ApiError(409, "This website service payment is no longer pending verification.");
+    }
+
+    const signatureIsValid = getPaymentClient().verifySignature({
+      orderId: payload.orderId,
+      paymentId: payload.paymentId,
+      signature: payload.signature,
+    });
+
+    if (!signatureIsValid) {
+      payment.status = PAYMENT_STATUS.FAILED;
+      payment.failedAt = new Date();
+      payment.failureReason = "Razorpay signature verification failed.";
+      payment.verificationPayload = payload;
+      await payment.save();
+      throw new ApiError(400, "Website service payment verification failed.");
+    }
+
+    await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
+
+    const split = calculateMarketplaceSplit({ sourceType: "service_asset" }, payment.amountInr);
+    let purchase = existingPurchase;
+
+    if (!purchase) {
+      purchase = await Purchase.create({
+        buyerId: userId,
+        sellerId: service.adminId,
+        purchaseType: PURCHASE_TYPES.SERVICE_ASSET,
+        targetId: service._id,
+        serviceListingId: service._id,
+        paymentId: payment._id,
+        amountInr: payment.amountInr,
+        currency: payment.currency,
+        paymentStatus: PAYMENT_STATUS.PAID,
+        status: "completed",
+        downloadBuyerName: payment.downloadBuyerName || payment.guestBuyerName || "",
+        adminCommissionAmount: split.adminCommissionAmount,
+        sellerEarningAmount: split.sellerEarningAmount,
+        buyerAccessState: "granted",
+        accessGrantedAt: new Date(),
+      });
+    } else if (
+      (payment.downloadBuyerName || payment.guestBuyerName) &&
+      purchase.downloadBuyerName !== (payment.downloadBuyerName || payment.guestBuyerName)
+    ) {
+      purchase.downloadBuyerName = payment.downloadBuyerName || payment.guestBuyerName || "";
+      await purchase.save();
+    }
+
+    payment.status = PAYMENT_STATUS.PAID;
+    payment.unlockStatus = "unlocked";
+    payment.buyerAccessGranted = true;
+    payment.razorpayPaymentId = payload.paymentId;
+    payment.razorpaySignature = payload.signature;
+    payment.verifiedAt = new Date();
+    payment.failureReason = "";
+    payment.verificationPayload = payload;
+    payment.purchaseId = purchase._id;
+    payment.adminCommissionAmount = split.adminCommissionAmount;
+    payment.sellerEarningAmount = split.sellerEarningAmount;
+    await payment.save();
+
+    service.salesCount = (service.salesCount || 0) + (existingPurchase ? 0 : 1);
+    await service.save();
+
+    const populatedPurchase = await Purchase.findById(purchase._id)
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
+      .populate("sellerId", "name sellerProfile");
+
+    await notificationService.create({
+      userId,
+      type: "service_purchase_success",
+      title: "Website service purchase completed",
+      message: `You now own "${service.title}" with ZIP download access.`,
+      actionUrl: "/app/purchased-pdfs",
+      metadata: {
+        purchaseId: purchase._id.toString(),
+        serviceId: service._id.toString(),
+      },
+    });
+
+    return {
+      payment: serializePayment(payment),
+      purchase: purchaseService.serializePurchase(populatedPurchase),
+    };
+  },
+
+  async verifyPublicServicePayment(payload) {
+    const payment = await findPendingPaymentForOrder(payload.orderId);
+
+    if (payment.buyerMode !== "guest") {
+      throw new ApiError(403, "This payment order belongs to an authenticated account.");
+    }
+
+    const service = await findPurchasableService(payment.serviceListingId);
+
+    let purchase = await Purchase.findOne({
+      paymentId: payment._id,
+      status: "completed",
+      buyerAccessState: "granted",
+    })
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
+      .populate("sellerId", "name sellerProfile");
+
+    if (purchase && payment.status === PAYMENT_STATUS.PAID) {
+      const guestAccess = await issueGuestPurchaseAccess(purchase);
+      return {
+        payment: serializePayment(payment),
+        purchase: purchaseService.serializePurchase(purchase),
+        guestAccess,
+      };
+    }
+
+    if (payment.status !== PAYMENT_STATUS.PENDING && !purchase) {
+      throw new ApiError(409, "This website service payment is no longer pending verification.");
+    }
+
+    const signatureIsValid = getPaymentClient().verifySignature({
+      orderId: payload.orderId,
+      paymentId: payload.paymentId,
+      signature: payload.signature,
+    });
+
+    if (!signatureIsValid) {
+      payment.status = PAYMENT_STATUS.FAILED;
+      payment.failedAt = new Date();
+      payment.failureReason = "Razorpay signature verification failed.";
+      payment.verificationPayload = payload;
+      await payment.save();
+      throw new ApiError(400, "Website service payment verification failed.");
+    }
+
+    await ensureUniqueVerifiedPaymentId(payload.paymentId, payment._id);
+
+    const split = calculateMarketplaceSplit({ sourceType: "service_asset" }, payment.amountInr);
+    const isNewPurchase = !purchase;
+
+    if (!purchase) {
+      purchase = await Purchase.create({
+        buyerId: payment.userId || new mongoose.Types.ObjectId(),
+        buyerMode: "guest",
+        guestBuyerName: payment.guestBuyerName,
+        sellerId: service.adminId,
+        purchaseType: PURCHASE_TYPES.SERVICE_ASSET,
+        targetId: service._id,
+        serviceListingId: service._id,
+        paymentId: payment._id,
+        amountInr: payment.amountInr,
+        currency: payment.currency,
+        paymentStatus: PAYMENT_STATUS.PAID,
+        status: "completed",
+        downloadBuyerName: payment.downloadBuyerName || "",
+        adminCommissionAmount: split.adminCommissionAmount,
+        sellerEarningAmount: split.sellerEarningAmount,
+        buyerAccessState: "granted",
+        accessGrantedAt: new Date(),
+      });
+    } else if (payment.downloadBuyerName && purchase.downloadBuyerName !== payment.downloadBuyerName) {
+      purchase.downloadBuyerName = payment.downloadBuyerName;
+      await purchase.save();
+    }
+
+    payment.status = PAYMENT_STATUS.PAID;
+    payment.unlockStatus = "unlocked";
+    payment.buyerAccessGranted = true;
+    payment.razorpayPaymentId = payload.paymentId;
+    payment.razorpaySignature = payload.signature;
+    payment.verifiedAt = new Date();
+    payment.failureReason = "";
+    payment.verificationPayload = payload;
+    payment.purchaseId = purchase._id;
+    payment.adminCommissionAmount = split.adminCommissionAmount;
+    payment.sellerEarningAmount = split.sellerEarningAmount;
+    await payment.save();
+
+    service.salesCount = (service.salesCount || 0) + (isNewPurchase ? 1 : 0);
+    await service.save();
+
+    const populatedPurchase = await Purchase.findById(purchase._id)
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
+      .populate("sellerId", "name sellerProfile");
+
+    const guestAccess = await issueGuestPurchaseAccess(populatedPurchase);
+
+    return {
+      payment: serializePayment(payment),
+      purchase: purchaseService.serializePurchase(populatedPurchase),
+      guestAccess,
     };
   },
 };

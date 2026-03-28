@@ -89,7 +89,7 @@ export function UserDashboardPage() {
       <section className="card-grid">
         <StatCard label="Profile completion" value={`${dashboardSummary?.overview?.profileCompletionPercent ?? 0}%`} />
         <StatCard label="Generated PDFs" value={dashboardSummary?.counters?.generatedPdfs ?? 0} />
-        <StatCard label="Purchased PDFs" value={dashboardSummary?.counters?.purchasedPdfs ?? 0} />
+        <StatCard label="Purchased library" value={dashboardSummary?.counters?.purchasedPdfs ?? 0} />
         <StatCard label="Listed PDFs" value={dashboardSummary?.counters?.listedPdfs ?? 0} />
         <StatCard label="Wallet balance" value={`Rs ${dashboardSummary?.wallet?.availableBalance ?? 0}`} />
         <StatCard label="Unread notifications" value={dashboardSummary?.counters?.unreadNotifications ?? 0} />
@@ -145,9 +145,9 @@ export function UserDashboardPage() {
           action={<Link className="button secondary" to="/app/generated-pdfs">Open generated PDFs</Link>}
         />
         <EmptyStateCard
-          title="Purchased PDFs"
-          description={dashboardSummary?.sections?.purchasedPdfs?.emptyMessage || "Purchased PDFs from the marketplace will appear here."}
-          action={<Link className="button secondary" to="/app/purchased-pdfs">Open purchased PDFs</Link>}
+          title="Purchased library"
+          description={dashboardSummary?.sections?.purchasedPdfs?.emptyMessage || "Purchased PDFs and website services from the marketplace will appear here."}
+          action={<Link className="button secondary" to="/app/purchased-pdfs">Open purchased library</Link>}
         />
         <EmptyStateCard
           title="Listed PDFs"

@@ -1,5 +1,5 @@
 import { createStorageClient, hashToken } from "../../lib/index.js";
-import { AdminUploadedPdf, GeneratedPdf, MarketplaceListing, Purchase } from "../../models/index.js";
+import { AdminUploadedPdf, GeneratedPdf, MarketplaceListing, Purchase, ServiceListing } from "../../models/index.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { personalizePdfDownload } from "../../utils/pdfPersonalization.js";
 
@@ -10,6 +10,9 @@ function getPurchaseBuyerName(record) {
 }
 
 function serializePurchase(record) {
+  const isServicePurchase = Boolean(record?.serviceListingId);
+  const service = isServicePurchase ? record.serviceListingId : null;
+
   return {
     id: record._id.toString(),
     buyerId: record.buyerId?._id?.toString?.() || record.buyerId?.toString?.() || null,
@@ -19,9 +22,11 @@ function serializePurchase(record) {
     sellerId: record.sellerId?._id?.toString?.() || record.sellerId?.toString?.() || null,
     sellerName: record.sellerId?.sellerProfile?.displayName || record.sellerId?.name || "ExamNova Seller",
     listingId: record.listingId?._id?.toString?.() || record.listingId?.toString?.() || null,
+    serviceListingId: service?._id?.toString?.() || record.serviceListingId?.toString?.() || null,
     generatedPdfId: record.generatedPdfId?._id?.toString?.() || record.generatedPdfId?.toString?.() || null,
-    title: record.listingId?.title || "Purchased PDF",
-    slug: record.listingId?.slug || "",
+    resourceKind: isServicePurchase ? "service" : "pdf",
+    title: service?.title || record.listingId?.title || "Purchased PDF",
+    slug: service?.slug || record.listingId?.slug || "",
     amountInr: record.amountInr,
     currency: record.currency || "INR",
     status: record.status,
@@ -33,6 +38,15 @@ function serializePurchase(record) {
     purchasedAt: record.createdAt,
     taxonomy: record.listingId?.taxonomy || null,
     studyMetadata: record.listingId?.studyMetadata || {},
+    serviceDetails: service
+      ? {
+          category: service.category || "",
+          shortDescription: service.shortDescription || "",
+          demoUrl: service.demoUrl || "",
+          repoUrl: service.repoUrl || "",
+          techStack: service.techStack || [],
+        }
+      : null,
   };
 }
 
@@ -100,6 +114,26 @@ async function buildPurchaseDownloadFile(listing) {
   };
 }
 
+async function buildServiceDownloadFile(service) {
+  if (!service?.zipStorageKey) {
+    throw new ApiError(404, "Purchased website ZIP file is not available.");
+  }
+
+  let absolutePath;
+
+  try {
+    absolutePath = await storageClient.resolveExisting(service.zipStorageKey);
+  } catch {
+    throw new ApiError(404, "This purchased website ZIP file is missing on the server. Please re-upload it.");
+  }
+
+  return {
+    absolutePath,
+    downloadName: service.zipFileName || `${service.title.replace(/\s+/g, "-").toLowerCase()}.zip`,
+    contentType: service.zipMimeType || "application/zip",
+  };
+}
+
 async function buildPersonalizedDownloadFile(file, purchase, listing) {
   const buyerName = getPurchaseBuyerName(purchase);
 
@@ -129,6 +163,7 @@ export const purchaseService = {
       buyerAccessState: "granted",
     })
       .populate("listingId", "title slug taxonomy studyMetadata priceInr")
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
       .populate("buyerId", "name")
       .populate("sellerId", "name sellerProfile")
       .sort({ createdAt: -1 });
@@ -144,6 +179,7 @@ export const purchaseService = {
       buyerAccessState: "granted",
     })
       .populate("listingId", "title slug taxonomy studyMetadata priceInr sourcePdfId")
+      .populate("serviceListingId", "title slug category shortDescription demoUrl repoUrl techStack")
       .populate("buyerId", "name")
       .populate("sellerId", "name sellerProfile");
 
@@ -162,10 +198,18 @@ export const purchaseService = {
       buyerAccessState: "granted",
     })
       .populate("listingId")
+      .populate("serviceListingId")
       .populate("buyerId", "name");
 
     if (!purchase) {
       throw new ApiError(404, "Purchased PDF not found in your library.");
+    }
+
+    if (purchase.serviceListingId) {
+      const service = await ServiceListing.findById(
+        purchase.serviceListingId?._id || purchase.serviceListingId,
+      );
+      return buildServiceDownloadFile(service);
     }
 
     const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);
@@ -190,7 +234,9 @@ export const purchaseService = {
       buyerMode: "guest",
       status: "completed",
       buyerAccessState: "granted",
-    }).populate("listingId");
+    })
+      .populate("listingId")
+      .populate("serviceListingId");
 
     if (!purchase) {
       throw new ApiError(404, "Guest purchase not found.");
@@ -206,6 +252,13 @@ export const purchaseService = {
 
     if (hashToken(normalizedToken) !== purchase.guestAccessTokenHash) {
       throw new ApiError(403, "Guest download token is invalid.");
+    }
+
+    if (purchase.serviceListingId) {
+      const service = await ServiceListing.findById(
+        purchase.serviceListingId?._id || purchase.serviceListingId,
+      );
+      return buildServiceDownloadFile(service);
     }
 
     const listing = await findDownloadableListing(purchase.listingId?._id || purchase.listingId);

@@ -23,17 +23,20 @@ export const USER_STATUS = {
 export const PURCHASE_TYPES = {
   PRIVATE_PDF: "private_pdf",
   MARKETPLACE: "marketplace",
+  SERVICE_ASSET: "service_asset",
 };
 
 export const PAYMENT_PURPOSES = {
   PRIVATE_PDF: "private_pdf",
   MARKETPLACE: "marketplace",
+  SERVICE_ASSET: "service_asset",
   DEVELOPER_MODE_UNLOCK: "developer_mode_unlock",
 };
 
 export const PAYMENT_CONTEXT_TYPES = {
   PRIVATE_PDF: "private_pdf",
   MARKETPLACE: "marketplace",
+  SERVICE_ASSET: "service_asset",
   ACCOUNT_MODE: "account_mode",
 };
 
@@ -47,6 +50,14 @@ export const MARKETPLACE_SPLIT = {
 export const MARKETPLACE_COVER_SEALS = ["new", "premium", "popular", "updated"];
 export const MARKETPLACE_LISTING_CATEGORIES = ["semester_exam", "cia_exam"];
 export const MARKETPLACE_LISTING_CATEGORY_LIMIT = 5;
+export const MARKETPLACE_PDF_SECTIONS = ["exam_micro", "notes"];
+export const SERVICE_LISTING_CATEGORIES = [
+  "portfolio_website",
+  "commercial_website",
+  "product_website",
+  "landing_page",
+  "ecommerce_website",
+];
 
 export const PAYMENT_STATUS = {
   PENDING: "pending",

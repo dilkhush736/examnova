@@ -79,3 +79,25 @@ export function validatePublicMarketplaceOrderRequest(req, _res, next) {
     return next(error);
   }
 }
+
+export function validateServiceOrderRequest(req, _res, next) {
+  try {
+    const fullName = ensureMinLength(
+      ensureRequiredString(req.body?.fullName, "fullName", { maxLength: 80 }),
+      "fullName",
+      2,
+    );
+
+    req.body = {
+      serviceId: ensureObjectId(req.body?.serviceId, "serviceId"),
+      fullName,
+    };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function validatePublicServiceOrderRequest(req, _res, next) {
+  return validateServiceOrderRequest(req, _res, next);
+}

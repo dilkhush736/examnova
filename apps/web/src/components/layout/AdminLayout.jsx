@@ -18,6 +18,7 @@ const adminNavSections = [
       { to: "/admin/users", label: "Users", icon: "bi-people-fill", meta: "Account control" },
       { to: "/admin/listings", label: "Listings", icon: "bi-shop-window", meta: "Marketplace oversight" },
       { to: "/admin/uploads", label: "Admin uploads", icon: "bi-cloud-upload-fill", meta: "Owned inventory" },
+      { to: "/admin/services", label: "Website services", icon: "bi-window-stack", meta: "ZIP product catalog" },
       { to: "/admin/upcoming", label: "Upcoming locked", icon: "bi-hourglass-split", meta: "Release queue" },
       { to: "/admin/moderation", label: "Moderation", icon: "bi-shield-exclamation", meta: "Risk review" },
     ],

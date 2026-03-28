@@ -11,6 +11,7 @@ const purchaseSchema = new mongoose.Schema(
     purchaseType: { type: String, required: true, index: true },
     targetId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
     listingId: { type: mongoose.Schema.Types.ObjectId, ref: "MarketplaceListing" },
+    serviceListingId: { type: mongoose.Schema.Types.ObjectId, ref: "ServiceListing" },
     generatedPdfId: { type: mongoose.Schema.Types.ObjectId, ref: "GeneratedPdf" },
     adminUploadId: { type: mongoose.Schema.Types.ObjectId, ref: "AdminUploadedPdf" },
     paymentId: { type: mongoose.Schema.Types.ObjectId, ref: "Payment", required: true },
@@ -43,6 +44,13 @@ purchaseSchema.index(
   {
     unique: true,
     partialFilterExpression: { buyerId: { $exists: true, $type: "objectId" } },
+  },
+);
+purchaseSchema.index(
+  { buyerId: 1, serviceListingId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { buyerId: { $exists: true, $type: "objectId" }, serviceListingId: { $exists: true, $type: "objectId" } },
   },
 );
 

@@ -46,11 +46,15 @@ export {
   createDeveloperModeOrder,
   createPrivatePdfOrder,
   createMarketplaceOrder,
+  createPublicServiceOrder,
   createPublicMarketplaceOrder,
+  createServiceOrder,
   getPrivatePdfPaymentStatus,
   verifyDeveloperModePayment,
   verifyMarketplacePayment,
+  verifyPublicServicePayment,
   verifyPublicMarketplacePayment,
+  verifyServicePayment,
   verifyPrivatePdfPayment,
 } from "./payments.js";
 export {
@@ -62,6 +66,14 @@ export {
   updateMarketplaceListing,
 } from "./marketplace.js";
 export { downloadGuestLibraryItem, downloadLibraryItem, fetchLibrary, fetchLibraryItem } from "./library.js";
+export {
+  createAdminService,
+  deleteAdminService,
+  fetchAdminServices,
+  fetchPublicServiceDetail,
+  fetchPublicServices,
+  updateAdminService,
+} from "./servicesCatalog.js";
 export { fetchWallet, fetchWalletTransactions } from "./wallet.js";
 export { cancelWithdrawal, createWithdrawal, fetchWithdrawals } from "./withdrawals.js";
 export {

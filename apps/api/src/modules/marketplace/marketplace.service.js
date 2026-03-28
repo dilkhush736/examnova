@@ -6,6 +6,7 @@ import { slugify } from "../../utils/slugify.js";
 import {
   MARKETPLACE_LISTING_CATEGORIES,
   MARKETPLACE_LISTING_CATEGORY_LIMIT,
+  MARKETPLACE_PDF_SECTIONS,
 } from "../../constants/app.constants.js";
 import {
   normalizeAcademicTaxonomy,
@@ -44,6 +45,7 @@ function buildSearchText(payload) {
   return [
     payload.title,
     payload.description,
+    normalizeText(payload.section).replace(/_/g, " "),
     normalizeText(payload.category).replace(/_/g, " "),
     payload.taxonomy?.subject,
     payload.taxonomy?.branch,
@@ -106,6 +108,14 @@ function resolveCoverImageUrl(record, req) {
   return buildPublicMediaUrl(req, record?.coverImageStorageKey, record?.coverImageUrl || "");
 }
 
+function resolveListingSection(record) {
+  if (record?.section) {
+    return record.section;
+  }
+
+  return record?.sourceType === "admin_upload" ? "exam_micro" : "notes";
+}
+
 function serializeListing(record, req = null) {
   return {
     id: record._id.toString(),
@@ -116,6 +126,7 @@ function serializeListing(record, req = null) {
     sourcePdfId: record.sourcePdfId?._id?.toString?.() || record.sourcePdfId?.toString?.() || null,
     adminUploadId: record.adminUploadId?._id?.toString?.() || record.adminUploadId?.toString?.() || null,
     sourceType: record.sourceType || "generated_pdf",
+    section: resolveListingSection(record),
     category: record.category || "",
     title: record.title,
     slug: record.slug,
@@ -224,6 +235,7 @@ export const marketplaceService = {
       title,
       slug,
       description,
+      section: "notes",
       category: "",
       priceInr: ensurePrice(payload.priceInr),
       currency: "INR",
@@ -239,7 +251,7 @@ export const marketplaceService = {
       releaseAt,
       seoTitle: normalizeText(payload.seoTitle) || title,
       seoDescription: normalizeText(payload.seoDescription) || description.slice(0, 150),
-      searchText: buildSearchText({ title, description, category: "", taxonomy, studyMetadata, tags }),
+      searchText: buildSearchText({ title, description, section: "notes", category: "", taxonomy, studyMetadata, tags }),
       publishedAt: visibility === "published" ? new Date() : null,
     });
 
@@ -289,6 +301,7 @@ export const marketplaceService = {
 
     listing.title = title;
     listing.description = description;
+    listing.section = listing.sourceType === "admin_upload" ? listing.section || "exam_micro" : "notes";
     listing.category = listing.sourceType === "admin_upload" ? listing.category || "" : "";
     listing.priceInr = ensurePrice(payload.priceInr);
     listing.visibility = visibility;
@@ -303,6 +316,7 @@ export const marketplaceService = {
     listing.searchText = buildSearchText({
       title,
       description,
+      section: listing.section,
       category: listing.category,
       taxonomy,
       tags,
@@ -369,27 +383,41 @@ export const marketplaceService = {
       releaseAt: { $gt: now },
     };
     const categorizedSemesterQuery = {
-      ...availableQuery,
-      category: "semester_exam",
-    };
-    const categorizedCiaQuery = {
-      ...availableQuery,
-      category: "cia_exam",
-    };
-    const otherQuery = {
       $and: [
         availableQuery,
         {
           $or: [
-            { category: { $exists: false } },
-            { category: "" },
-            { category: { $nin: MARKETPLACE_LISTING_CATEGORIES } },
+            { section: "exam_micro", category: "semester_exam" },
+            { section: { $exists: false }, sourceType: "admin_upload", category: "semester_exam" },
+          ],
+        },
+      ],
+    };
+    const categorizedCiaQuery = {
+      $and: [
+        availableQuery,
+        {
+          $or: [
+            { section: "exam_micro", category: "cia_exam" },
+            { section: { $exists: false }, sourceType: "admin_upload", category: "cia_exam" },
+          ],
+        },
+      ],
+    };
+    const notesQuery = {
+      $and: [
+        availableQuery,
+        {
+          $or: [
+            { section: "notes" },
+            { section: { $exists: false }, sourceType: { $ne: "admin_upload" } },
+            { section: "" },
           ],
         },
       ],
     };
 
-    const [items, total, upcomingItems, semesterExamItems, ciaExamItems, otherItems] = await Promise.all([
+    const [items, total, upcomingItems, semesterExamItems, ciaExamItems, notesItems] = await Promise.all([
       MarketplaceListing.find(availableQuery)
         .populate("sellerId", "name role sellerProfile")
         .sort(sort)
@@ -408,7 +436,7 @@ export const marketplaceService = {
         .populate("sellerId", "name role sellerProfile")
         .sort(sort)
         .limit(MARKETPLACE_LISTING_CATEGORY_LIMIT),
-      MarketplaceListing.find(otherQuery)
+      MarketplaceListing.find(notesQuery)
         .populate("sellerId", "name role sellerProfile")
         .sort(sort)
         .limit(limit),
@@ -420,7 +448,7 @@ export const marketplaceService = {
         semesterExam: semesterExamItems.map((item) => serializeListing(item, req)),
         ciaExam: ciaExamItems.map((item) => serializeListing(item, req)),
       },
-      otherItems: otherItems.map((item) => serializeListing(item, req)),
+      notesItems: notesItems.map((item) => serializeListing(item, req)),
       upcomingItems: upcomingItems.map((item) => serializeListing(item, req)),
       pagination: {
         page,

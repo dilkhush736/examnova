@@ -13,6 +13,7 @@ import { normalizeAcademicTaxonomy, normalizeStudyMetadata } from "../../utils/a
 import {
   MARKETPLACE_LISTING_CATEGORIES,
   MARKETPLACE_LISTING_CATEGORY_LIMIT,
+  MARKETPLACE_PDF_SECTIONS,
 } from "../../constants/app.constants.js";
 import {
   getListingDisplayDate,
@@ -63,6 +64,28 @@ function normalizeCategory(value) {
   return category;
 }
 
+function normalizeSection(value) {
+  const section = normalizeText(value).toLowerCase();
+
+  if (!section) {
+    return "exam_micro";
+  }
+
+  if (!MARKETPLACE_PDF_SECTIONS.includes(section)) {
+    throw new ApiError(422, `section must be one of: ${MARKETPLACE_PDF_SECTIONS.join(", ")}.`);
+  }
+
+  return section;
+}
+
+function resolvePdfSection(record) {
+  if (record?.section) {
+    return record.section;
+  }
+
+  return record?.sourceType === "generated_pdf" ? "notes" : "exam_micro";
+}
+
 function resolveCoverImageUrl(record, req) {
   return buildPublicMediaUrl(req, record?.coverImageStorageKey, record?.coverImageUrl || "");
 }
@@ -91,10 +114,11 @@ function ensureUpcomingStatus(status) {
   return normalized;
 }
 
-function buildSearchText({ title, description, category, taxonomy, studyMetadata, tags }) {
+function buildSearchText({ title, description, section, category, taxonomy, studyMetadata, tags }) {
   return [
     title,
     description,
+    normalizeText(section).replace(/_/g, " "),
     normalizeText(category).replace(/_/g, " "),
     taxonomy?.subject,
     taxonomy?.semester,
@@ -178,6 +202,7 @@ function serializeAdminUpload(record, req = null) {
     listingId: record.listingId?._id?.toString?.() || record.listingId?.toString?.() || null,
     title: record.title,
     description: record.description || "",
+    section: resolvePdfSection(record),
     category: record.category || "",
     originalName: record.originalName,
     mimeType: record.mimeType,
@@ -241,6 +266,7 @@ async function syncListingFromAdminUpload(record) {
     title: record.title,
     slug,
     description: record.description || "",
+    section: resolvePdfSection(record),
     category: record.category || "",
     priceInr: record.priceInr,
     currency: record.currency || "INR",
@@ -260,6 +286,7 @@ async function syncListingFromAdminUpload(record) {
     searchText: buildSearchText({
       title: record.title,
       description: record.description,
+      section: resolvePdfSection(record),
       category: record.category,
       taxonomy: record.taxonomy,
       studyMetadata: record.studyMetadata,
@@ -311,9 +338,12 @@ export const adminContentService = {
     }
 
     const taxonomy = payload.taxonomy || normalizeTaxonomy(payload);
-    const category = normalizeCategory(payload.category);
+    const section = normalizeSection(payload.section);
+    const category = section === "exam_micro" ? normalizeCategory(payload.category) : "";
     const visibility = ensureVisibility(payload.visibility);
-    await ensureCategoryCapacity(category);
+    if (section === "exam_micro") {
+      await ensureCategoryCapacity(category);
+    }
     const uploadedFile = await storageClient.upload({
       originalName: file.originalname,
       buffer: file.buffer,
@@ -331,6 +361,7 @@ export const adminContentService = {
       adminId: actor.id || actor._id,
       title: normalizeText(payload.title),
       description: normalizeText(payload.description),
+      section,
       category,
       originalName: file.originalname,
       mimeType: file.mimetype,
@@ -410,11 +441,15 @@ export const adminContentService = {
       record.coverImageUrl = "";
     }
 
-    const category = normalizeCategory(payload.category || record.category);
-    await ensureCategoryCapacity(category, record._id);
+    const section = normalizeSection(payload.section || record.section || resolvePdfSection(record));
+    const category = section === "exam_micro" ? normalizeCategory(payload.category || record.category) : "";
+    if (section === "exam_micro") {
+      await ensureCategoryCapacity(category, record._id);
+    }
 
     record.title = normalizeText(payload.title);
     record.description = normalizeText(payload.description);
+    record.section = section;
     record.category = category;
     record.priceInr = ensurePrice(payload.priceInr);
     record.taxonomy = payload.taxonomy || normalizeTaxonomy(payload);

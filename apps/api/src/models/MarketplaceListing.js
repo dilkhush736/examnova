@@ -3,6 +3,7 @@ import { COLLECTION_NAMES } from "../constants/db.constants.js";
 import {
   MARKETPLACE_COVER_SEALS,
   MARKETPLACE_LISTING_CATEGORIES,
+  MARKETPLACE_PDF_SECTIONS,
 } from "../constants/app.constants.js";
 import {
   requiredAcademicTaxonomySchema,
@@ -18,6 +19,7 @@ const marketplaceListingSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, index: true },
     description: { type: String, default: "" },
+    section: { type: String, enum: ["", ...MARKETPLACE_PDF_SECTIONS], default: "", index: true },
     category: { type: String, enum: ["", ...MARKETPLACE_LISTING_CATEGORIES], default: "", index: true },
     priceInr: { type: Number, required: true },
     currency: { type: String, default: "INR" },
@@ -72,6 +74,7 @@ marketplaceListingSchema.index({ isPublished: 1, publishedAt: -1 });
 marketplaceListingSchema.index({ isPublished: 1, releaseAt: 1 });
 marketplaceListingSchema.index({ priceInr: 1, publishedAt: -1 });
 marketplaceListingSchema.index({ category: 1, isPublished: 1, publishedAt: -1 });
+marketplaceListingSchema.index({ section: 1, category: 1, isPublished: 1, publishedAt: -1 });
 
 export const MarketplaceListing =
   mongoose.models.MarketplaceListing ||

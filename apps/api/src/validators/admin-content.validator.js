@@ -2,12 +2,15 @@ import { ApiError } from "../utils/ApiError.js";
 import {
   MARKETPLACE_COVER_SEALS,
   MARKETPLACE_LISTING_CATEGORIES,
+  MARKETPLACE_PDF_SECTIONS,
+  SERVICE_LISTING_CATEGORIES,
 } from "../constants/app.constants.js";
 import {
   ensureOptionalDateTime,
   ensureNumericAmount,
   ensureObjectId,
   ensureRequiredString,
+  normalizeStringArray,
   normalizeBoolean,
   normalizeOptionalString,
 } from "./common.js";
@@ -53,13 +56,61 @@ function normalizeCategory(value) {
   return category;
 }
 
+function normalizePdfSection(value) {
+  const section = normalizeOptionalString(value, { maxLength: 40 }).toLowerCase() || "exam_micro";
+
+  if (!MARKETPLACE_PDF_SECTIONS.includes(section)) {
+    throw new ApiError(422, `section must be one of: ${MARKETPLACE_PDF_SECTIONS.join(", ")}.`);
+  }
+
+  return section;
+}
+
+function normalizeServiceCategory(value) {
+  const category = normalizeOptionalString(value, { maxLength: 50 }).toLowerCase();
+  if (!category) {
+    throw new ApiError(422, "category is required.");
+  }
+  if (!SERVICE_LISTING_CATEGORIES.includes(category)) {
+    throw new ApiError(422, `category must be one of: ${SERVICE_LISTING_CATEGORIES.join(", ")}.`);
+  }
+  return category;
+}
+
+function normalizeUrlField(value, field, { required = false } = {}) {
+  const normalized = normalizeOptionalString(value, {
+    maxLength: 400,
+    collapseWhitespace: false,
+  });
+
+  if (!normalized) {
+    if (required) {
+      throw new ApiError(422, `${field} is required.`);
+    }
+    return "";
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+    return parsed.toString();
+  } catch {
+    throw new ApiError(422, `${field} must be a valid http or https URL.`);
+  }
+}
+
 function buildSanitizedPayload(body) {
   const studyMetadata = normalizeStudyMetadata(body || {});
+  const section = normalizePdfSection(body?.section);
+  const category = section === "exam_micro" ? normalizeCategory(body?.category) : "";
 
   return {
     title: ensureRequiredString(body?.title, "title", { maxLength: 140 }),
     description: normalizeOptionalString(body?.description, { maxLength: 1200 }),
-    category: normalizeCategory(body?.category),
+    section,
+    category,
     priceInr: validatePrice(body?.priceInr),
     visibility: normalizeOptionalString(body?.visibility, { maxLength: 20 }).toLowerCase() || "draft",
     tags: studyMetadata.tags,
@@ -75,6 +126,33 @@ function buildSanitizedPayload(body) {
     releaseAt: ensureOptionalDateTime(body?.releaseAt, "releaseAt"),
     coverSeal: normalizeCoverSeal(body?.coverSeal),
     taxonomy: validateTaxonomy(body),
+  };
+}
+
+function buildServiceSanitizedPayload(body) {
+  const priceInr = ensureNumericAmount(body?.priceInr, "priceInr", { min: 99, max: 500000 });
+  const offerPriceInr = body?.offerPriceInr === undefined || body?.offerPriceInr === null || body?.offerPriceInr === ""
+    ? 0
+    : ensureNumericAmount(body?.offerPriceInr, "offerPriceInr", { min: 0, max: 500000 });
+
+  if (offerPriceInr && offerPriceInr > priceInr) {
+    throw new ApiError(422, "offerPriceInr cannot be greater than priceInr.");
+  }
+
+  return {
+    title: ensureRequiredString(body?.title, "title", { maxLength: 140 }),
+    category: normalizeServiceCategory(body?.category),
+    shortDescription: ensureRequiredString(body?.shortDescription, "shortDescription", { maxLength: 220 }),
+    details: normalizeOptionalString(body?.details, { maxLength: 4000, collapseWhitespace: false }),
+    techStack: normalizeStringArray(body?.techStack, { maxItems: 12, itemMaxLength: 40 }),
+    demoUrl: normalizeUrlField(body?.demoUrl, "demoUrl", { required: true }),
+    repoUrl: normalizeUrlField(body?.repoUrl, "repoUrl"),
+    priceInr,
+    offerPriceInr,
+    visibility: normalizeOptionalString(body?.visibility, { maxLength: 20 }).toLowerCase() || "draft",
+    isFeatured: normalizeBoolean(body?.isFeatured, false),
+    seoTitle: normalizeOptionalString(body?.seoTitle, { maxLength: 160 }),
+    seoDescription: normalizeOptionalString(body?.seoDescription, { maxLength: 260 }),
   };
 }
 
@@ -137,6 +215,32 @@ export function validateUpcomingLockedAction(req, _res, next) {
     }
 
     req.body = { action };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function validateServiceListingCreate(req, _res, next) {
+  try {
+    const imageFile = req.files?.image?.[0];
+    const zipFile = req.files?.zipFile?.[0];
+    if (!imageFile) {
+      throw new ApiError(422, "A service image is required.");
+    }
+    if (!zipFile) {
+      throw new ApiError(422, "A ZIP file is required.");
+    }
+    req.body = buildServiceSanitizedPayload(req.body || {});
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function validateServiceListingUpdate(req, _res, next) {
+  try {
+    req.body = buildServiceSanitizedPayload(req.body || {});
     return next();
   } catch (error) {
     return next(error);

@@ -7,6 +7,7 @@ export { Notification } from "./Notification.js";
 export { ParsedQuestion } from "./ParsedQuestion.js";
 export { Payment } from "./Payment.js";
 export { Purchase } from "./Purchase.js";
+export { ServiceListing } from "./ServiceListing.js";
 export { Session } from "./Session.js";
 export { UpcomingLockedPdf } from "./UpcomingLockedPdf.js";
 export { UploadedDocument } from "./UploadedDocument.js";

@@ -1366,6 +1366,42 @@
   padding: 0.72rem 0.8rem;
 }
 
+.service-listing-card {
+  justify-items: stretch;
+  align-content: start;
+  text-align: left;
+}
+
+.service-listing-card .simple-card-copy {
+  justify-items: flex-start;
+  text-align: left;
+}
+
+.service-listing-card .simple-card-copy .support-copy {
+  max-width: none;
+}
+
+.service-card-cover {
+  aspect-ratio: 16 / 10;
+}
+
+.service-card-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+}
+
+.service-card-price-row strong {
+  font-size: 1.12rem;
+  line-height: 1;
+}
+
 .admin-uploads-shell {
   gap: 1rem;
 }
@@ -1452,6 +1488,18 @@
 .simple-pdf-detail-summary-row strong,
 .simple-personalization-note strong {
   line-height: 1.05;
+}
+
+.service-detail-shell {
+  gap: 1.2rem;
+}
+
+.service-detail-body-card {
+  background: var(--surface-card-accent);
+}
+
+.service-detail-body-copy {
+  white-space: pre-line;
 }
 
 .simple-personalization-note strong {

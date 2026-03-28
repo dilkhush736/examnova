@@ -75,6 +75,7 @@ function serializeListing(listing) {
     priceInr: listing.priceInr,
     sourceType: listing.sourceType || "generated_pdf",
     adminUploadId: listing.adminUploadId?._id?.toString?.() || listing.adminUploadId?.toString?.() || null,
+    section: listing.section || (listing.sourceType === "admin_upload" ? "exam_micro" : "notes"),
     category: listing.category || "",
     visibility: listing.visibility,
     approvalStatus: listing.approvalStatus,

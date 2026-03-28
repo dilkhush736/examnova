@@ -23,6 +23,34 @@ function getApiBaseUrl() {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+function extractDownloadFilename(contentDisposition = "") {
+  const normalizedHeader = String(contentDisposition || "").trim();
+  if (!normalizedHeader) {
+    return "";
+  }
+
+  const utfMatch = normalizedHeader.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim());
+    } catch {
+      return utfMatch[1].trim();
+    }
+  }
+
+  const quotedMatch = normalizedHeader.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1].trim();
+  }
+
+  const plainMatch = normalizedHeader.match(/filename=([^;]+)/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1].trim().replace(/^['"]|['"]$/g, "");
+  }
+
+  return "";
+}
+
 function createRequestSignal(timeoutMs, externalSignal) {
   if (!timeoutMs && !externalSignal) {
     return { signal: undefined, cleanup: () => {} };
@@ -134,7 +162,7 @@ export async function apiDownloadRequest(path, options = {}) {
 
   return {
     blob: await response.blob(),
-    filename: response.headers.get("content-disposition") || "",
+    filename: extractDownloadFilename(response.headers.get("content-disposition") || ""),
   };
 }
 

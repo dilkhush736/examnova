@@ -5,9 +5,11 @@ import { requireAuth } from "../../middleware/auth.middleware.js";
 import { paymentRateLimiter } from "../../middleware/index.js";
 import {
   validateMarketplaceOrderRequest,
+  validatePublicServiceOrderRequest,
   validatePublicMarketplaceOrderRequest,
   validatePaymentVerification,
   validatePrivatePdfOrderRequest,
+  validateServiceOrderRequest,
 } from "../../validators/index.js";
 
 const router = Router();
@@ -36,6 +38,18 @@ router.post(
   paymentRateLimiter,
   validatePaymentVerification,
   asyncHandler(paymentController.verifyPublicMarketplacePayment),
+);
+router.post(
+  "/public-service-order",
+  paymentRateLimiter,
+  validatePublicServiceOrderRequest,
+  asyncHandler(paymentController.createPublicServiceOrder),
+);
+router.post(
+  "/public-service-verify",
+  paymentRateLimiter,
+  validatePaymentVerification,
+  asyncHandler(paymentController.verifyPublicServicePayment),
 );
 router.post(
   "/private-pdf-order",
@@ -69,6 +83,20 @@ router.post(
   paymentRateLimiter,
   validatePaymentVerification,
   asyncHandler(paymentController.verifyMarketplacePayment),
+);
+router.post(
+  "/service-order",
+  requireAuth,
+  paymentRateLimiter,
+  validateServiceOrderRequest,
+  asyncHandler(paymentController.createServiceOrder),
+);
+router.post(
+  "/service-verify",
+  requireAuth,
+  paymentRateLimiter,
+  validatePaymentVerification,
+  asyncHandler(paymentController.verifyServicePayment),
 );
 router.post("/verify", requireAuth, paymentRateLimiter, validatePaymentVerification, asyncHandler(paymentController.handleWebhook));
 router.post("/webhook", asyncHandler(paymentController.handleWebhook));

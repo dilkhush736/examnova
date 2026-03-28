@@ -3,6 +3,7 @@ import { COLLECTION_NAMES } from "../constants/db.constants.js";
 import {
   MARKETPLACE_COVER_SEALS,
   MARKETPLACE_LISTING_CATEGORIES,
+  MARKETPLACE_PDF_SECTIONS,
 } from "../constants/app.constants.js";
 import {
   requiredAcademicTaxonomySchema,
@@ -20,6 +21,7 @@ const adminUploadedPdfSchema = new mongoose.Schema(
     sizeInBytes: { type: Number, required: true },
     storageKey: { type: String, required: true },
     storageUrl: { type: String, default: "" },
+    section: { type: String, enum: ["", ...MARKETPLACE_PDF_SECTIONS], default: "", index: true },
     category: { type: String, enum: ["", ...MARKETPLACE_LISTING_CATEGORIES], default: "", index: true },
     priceInr: { type: Number, required: true },
     currency: { type: String, default: "INR" },
@@ -52,6 +54,7 @@ adminUploadedPdfSchema.index({
   "taxonomy.subject": 1,
 });
 adminUploadedPdfSchema.index({ category: 1, createdAt: -1 });
+adminUploadedPdfSchema.index({ section: 1, category: 1, createdAt: -1 });
 
 export const AdminUploadedPdf =
   mongoose.models.AdminUploadedPdf ||

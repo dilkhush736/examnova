@@ -35,7 +35,7 @@ function createPublicSections({ isAuthenticated, isAdminSession, modeAccess }) {
           to: "/marketplace",
           icon: "bi-grid-1x2-fill",
           label: "Marketplace",
-          meta: "Open all public PDF cards",
+          meta: "Open exams, notes, and service cards",
         },
         {
           type: "anchor",
@@ -117,8 +117,8 @@ function createPublicSections({ isAuthenticated, isAdminSession, modeAccess }) {
         type: "link",
         to: "/app/purchased-pdfs",
         icon: "bi-bag-check-fill",
-        label: "Purchased PDFs",
-        meta: "See paid downloads",
+        label: "Purchased library",
+        meta: "See paid downloads and ZIP assets",
       },
       {
         type: "link",

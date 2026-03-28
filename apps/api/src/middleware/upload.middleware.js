@@ -9,6 +9,11 @@ const ALLOWED_COVER_IMAGE_TYPES = new Set([
   "image/webp",
   "image/avif",
 ]);
+const ALLOWED_SERVICE_ARCHIVE_TYPES = new Set([
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/octet-stream",
+]);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -84,8 +89,43 @@ const marketplaceCoverUpload = multer({
   },
 });
 
+const serviceListingFiles = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: env.maxUploadSizeMb * 1024 * 1024,
+    files: 2,
+  },
+  fileFilter(_req, file, callback) {
+    if (file.fieldname === "image") {
+      if (!isValidCoverImage(file)) {
+        callback(new ApiError(415, "Only JPG, PNG, WEBP, or AVIF images are supported for service images."));
+        return;
+      }
+
+      callback(null, true);
+      return;
+    }
+
+    if (file.fieldname === "zipFile") {
+      if (!ALLOWED_SERVICE_ARCHIVE_TYPES.has(String(file?.mimetype || "").toLowerCase())) {
+        callback(new ApiError(415, "Only ZIP files are supported for downloadable website packages."));
+        return;
+      }
+
+      callback(null, true);
+      return;
+    }
+
+    callback(new ApiError(415, `Unsupported upload field: ${file.fieldname}`));
+  },
+});
+
 export const adminUploadFieldFiles = adminUploadFiles.fields([
   { name: "pdf", maxCount: 1 },
   { name: "coverImage", maxCount: 1 },
 ]);
 export const marketplaceCoverImageUpload = marketplaceCoverUpload.fields([{ name: "coverImage", maxCount: 1 }]);
+export const serviceListingFieldFiles = serviceListingFiles.fields([
+  { name: "image", maxCount: 1 },
+  { name: "zipFile", maxCount: 1 },
+]);

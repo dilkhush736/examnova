@@ -10,8 +10,10 @@ import {
   MARKETPLACE_CATEGORY_LIMIT,
   MARKETPLACE_CATEGORY_OPTIONS,
   MARKETPLACE_COVER_SEAL_OPTIONS,
+  MARKETPLACE_PDF_SECTION_OPTIONS,
   MARKETPLACE_PRICE_RANGE,
   getMarketplaceCategoryLabel,
+  getMarketplacePdfSectionLabel,
 } from "../../features/marketplace/marketplace.constants.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import {
@@ -30,6 +32,7 @@ function createBlankAdminUploadForm() {
   return {
     title: "",
     description: "",
+    section: MARKETPLACE_PDF_SECTION_OPTIONS[0].value,
     category: MARKETPLACE_CATEGORY_OPTIONS[0].value,
     priceInr: String(MARKETPLACE_PRICE_RANGE.min),
     university: DEFAULT_UNIVERSITY,
@@ -59,6 +62,7 @@ function createAdminUploadForm(item = null) {
   return {
     title: item.title || "",
     description: item.description || "",
+    section: item.section || MARKETPLACE_PDF_SECTION_OPTIONS[0].value,
     category: item.category || MARKETPLACE_CATEGORY_OPTIONS[0].value,
     priceInr: String(item.priceInr || MARKETPLACE_PRICE_RANGE.min),
     university: item.taxonomy?.university || DEFAULT_UNIVERSITY,
@@ -150,7 +154,11 @@ export function AdminUploadsPage() {
   const categoryUsage = useMemo(
     () =>
       MARKETPLACE_CATEGORY_OPTIONS.reduce((counts, option) => {
-        const total = items.filter((item) => (item.category || MARKETPLACE_CATEGORY_OPTIONS[0].value) === option.value).length;
+        const total = items.filter(
+          (item) =>
+            (item.section || MARKETPLACE_PDF_SECTION_OPTIONS[0].value) === "exam_micro" &&
+            (item.category || MARKETPLACE_CATEGORY_OPTIONS[0].value) === option.value,
+        ).length;
         return {
           ...counts,
           [option.value]: total,
@@ -327,14 +335,32 @@ export function AdminUploadsPage() {
           <label className="field"><span>Title</span><input className="input" onChange={(event) => handleChange("title", event.target.value)} placeholder="Example: DBMS End-Sem Important Questions" required value={form.title} /></label>
           <div className="two-column-grid compact">
             <label className="field">
-              <span>Category</span>
-              <select className="input" onChange={(event) => handleChange("category", event.target.value)} value={form.category}>
-                {MARKETPLACE_CATEGORY_OPTIONS.map((option) => (
+              <span>Marketplace section</span>
+              <select className="input" onChange={(event) => handleChange("section", event.target.value)} value={form.section}>
+                {MARKETPLACE_PDF_SECTION_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label} ({categoryUsage[option.value] || 0}/{MARKETPLACE_CATEGORY_LIMIT})
+                    {option.label}
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="field">
+              <span>Category</span>
+              {form.section === "exam_micro" ? (
+                <select className="input" onChange={(event) => handleChange("category", event.target.value)} value={form.category}>
+                  {MARKETPLACE_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} ({categoryUsage[option.value] || 0}/{MARKETPLACE_CATEGORY_LIMIT})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  disabled
+                  value="Notes section does not need semester/CIA category"
+                />
+              )}
             </label>
             <label className="field"><span>Price (Rs.)</span><input className="input" max={MARKETPLACE_PRICE_RANGE.max} min={MARKETPLACE_PRICE_RANGE.min} onChange={(event) => handleChange("priceInr", event.target.value)} type="number" value={form.priceInr} /></label>
             <label className="field">
@@ -403,7 +429,12 @@ export function AdminUploadsPage() {
                 </div>
                 <div className="topbar-chip-group">
                   <StatusBadge tone="neutral">
-                    {getMarketplaceCategoryLabel(item.category || MARKETPLACE_CATEGORY_OPTIONS[0].value)}
+                    {getMarketplacePdfSectionLabel(item.section || MARKETPLACE_PDF_SECTION_OPTIONS[0].value)}
+                  </StatusBadge>
+                  <StatusBadge tone="neutral">
+                    {item.section === "notes"
+                      ? "Notes"
+                      : getMarketplaceCategoryLabel(item.category || MARKETPLACE_CATEGORY_OPTIONS[0].value)}
                   </StatusBadge>
                   <StatusBadge tone={item.visibility === "published" ? "success" : "warning"}>
                     {item.visibility}

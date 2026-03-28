@@ -5,6 +5,7 @@ import { DashboardLayout } from "../components/layout/DashboardLayout.jsx";
 import { AdminLayout } from "../components/layout/AdminLayout.jsx";
 import { MarketplacePage } from "../pages/public/MarketplacePage.jsx";
 import { PdfDetailPage } from "../pages/public/PdfDetailPage.jsx";
+import { ServiceDetailPage } from "../pages/public/ServiceDetailPage.jsx";
 import { LoginPage } from "../pages/auth/LoginPage.jsx";
 import { SignupPage } from "../pages/auth/SignupPage.jsx";
 import { VerifyOtpPage } from "../pages/auth/VerifyOtpPage.jsx";
@@ -27,6 +28,7 @@ import { PaymentHistoryPage } from "../pages/app/PaymentHistoryPage.jsx";
 import { NotificationsPage } from "../pages/app/NotificationsPage.jsx";
 import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage.jsx";
 import { AdminAnalyticsPage } from "../pages/admin/AdminAnalyticsPage.jsx";
+import { AdminServicesPage } from "../pages/admin/AdminServicesPage.jsx";
 import { AdminUploadsPage } from "../pages/admin/AdminUploadsPage.jsx";
 import { AdminUpcomingPdfsPage } from "../pages/admin/AdminUpcomingPdfsPage.jsx";
 import { AdminUsersPage } from "../pages/admin/AdminUsersPage.jsx";
@@ -52,6 +54,7 @@ export function AppRouter() {
         <Route index element={<Navigate to="/marketplace" replace />} />
         <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/pdf/:slug" element={<PdfDetailPage />} />
+        <Route path="/services/:slug" element={<ServiceDetailPage />} />
         <Route path="/upcoming" element={<Navigate to="/marketplace" replace />} />
         <Route path="/upcoming/:slug" element={<Navigate to="/marketplace" replace />} />
         <Route path="/university/:slug" element={<Navigate to="/marketplace" replace />} />
@@ -113,6 +116,7 @@ export function AppRouter() {
         <Route path="alerts" element={<AdminNotificationsPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
         <Route path="uploads" element={<AdminUploadsPage />} />
+        <Route path="services" element={<AdminServicesPage />} />
         <Route path="upcoming" element={<AdminUpcomingPdfsPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="listings" element={<AdminListingsPage />} />

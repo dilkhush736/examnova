@@ -18,6 +18,7 @@ import { adminContentRoutes } from "../modules/admin-content/adminContent.routes
 import { seoRoutes } from "../modules/seo/seo.routes.js";
 import { seoController } from "../modules/seo/seo.controller.js";
 import { publicRoutes } from "../modules/public/public.routes.js";
+import { serviceCatalogRoutes } from "../modules/service-catalog/serviceCatalog.routes.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export function registerRoutes(app) {
@@ -43,6 +44,7 @@ export function registerRoutes(app) {
   apiRouter.use("/admin-content", adminContentRoutes);
   apiRouter.use("/public", seoRoutes);
   apiRouter.use("/public", publicRoutes);
+  apiRouter.use("/services", serviceCatalogRoutes);
 
   app.use(API_PREFIX, apiRouter);
 }

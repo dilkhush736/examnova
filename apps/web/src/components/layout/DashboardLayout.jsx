@@ -26,7 +26,7 @@ export function DashboardLayout() {
       items: [
         { to: "/app/upload-generate", label: "Generate PDFs", icon: "bi-cloud-arrow-up-fill", meta: "Upload, detect, generate" },
         { to: "/app/generated-pdfs", label: "Generated PDFs", icon: "bi-file-earmark-pdf-fill", meta: "AI output library" },
-        { to: "/app/purchased-pdfs", label: "Purchased PDFs", icon: "bi-bag-check-fill", meta: "Buyer library" },
+        { to: "/app/purchased-pdfs", label: "Purchased library", icon: "bi-bag-check-fill", meta: "PDFs and website assets" },
       ],
     },
     ...(developerActive

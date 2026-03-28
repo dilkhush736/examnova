@@ -17,9 +17,11 @@ export {
 export { validateUploadRequest } from "./upload.validator.js";
 export {
   validateMarketplaceOrderRequest,
+  validatePublicServiceOrderRequest,
   validatePublicMarketplaceOrderRequest,
   validatePaymentVerification,
   validatePrivatePdfOrderRequest,
+  validateServiceOrderRequest,
 } from "./payment.validator.js";
 export {
   validateAdminListingAction,
@@ -30,6 +32,8 @@ export {
 export {
   validateAdminUploadCreate,
   validateAdminUploadUpdate,
+  validateServiceListingCreate,
+  validateServiceListingUpdate,
   validateUpcomingLockedAction,
   validateUpcomingLockedCreate,
   validateUpcomingLockedUpdate,

@@ -58,6 +58,21 @@ export function createPublicMarketplaceOrder(listingId, fullName) {
   });
 }
 
+export function createServiceOrder(accessToken, serviceId, fullName) {
+  return apiRequest("/payments/service-order", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ serviceId, fullName }),
+  });
+}
+
+export function createPublicServiceOrder(serviceId, fullName) {
+  return apiRequest("/payments/public-service-order", {
+    method: "POST",
+    body: JSON.stringify({ serviceId, fullName }),
+  });
+}
+
 export function verifyMarketplacePayment(accessToken, payload) {
   return apiRequest("/payments/marketplace-verify", {
     method: "POST",
@@ -68,6 +83,21 @@ export function verifyMarketplacePayment(accessToken, payload) {
 
 export function verifyPublicMarketplacePayment(payload) {
   return apiRequest("/payments/public-marketplace-verify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyServicePayment(accessToken, payload) {
+  return apiRequest("/payments/service-verify", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyPublicServicePayment(payload) {
+  return apiRequest("/payments/public-service-verify", {
     method: "POST",
     body: JSON.stringify(payload),
   });
