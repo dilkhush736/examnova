@@ -28,7 +28,7 @@ import { ensureReleasedOrThrow } from "../../utils/marketplaceAvailability.js";
 import { createMarketplaceReceiptDownload } from "../../utils/paymentReceipt.js";
 
 const PRIVATE_PDF_PRICE = 4;
-const GUEST_PURCHASE_ACCESS_TTL_MS = 1000 * 60 * 60 * 24;
+const GUEST_PURCHASE_ACCESS_TTL_MS = 1000 * 60 * 60 * 24 * 365;
 let paymentClientInstance = null;
 
 function getMissingPaymentEnvVars() {

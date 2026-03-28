@@ -31,14 +31,37 @@ function getGuestPurchaseStorageKey(listingId) {
   return `examnova:guest-marketplace-access:${listingId}`;
 }
 
+function readGuestStorage(key) {
+  if (typeof window === "undefined") return null;
+
+  const localValue = window.localStorage.getItem(key);
+  if (localValue) {
+    return localValue;
+  }
+
+  const legacySessionValue = window.sessionStorage.getItem(key);
+  if (legacySessionValue) {
+    window.localStorage.setItem(key, legacySessionValue);
+    window.sessionStorage.removeItem(key);
+    return legacySessionValue;
+  }
+
+  return null;
+}
+
 function readGuestPurchaseAccess(listingId) {
   if (typeof window === "undefined" || !listingId) return null;
   try {
-    const rawValue = window.sessionStorage.getItem(getGuestPurchaseStorageKey(listingId));
+    const storageKey = getGuestPurchaseStorageKey(listingId);
+    const rawValue = readGuestStorage(storageKey);
     if (!rawValue) return null;
     const parsedValue = JSON.parse(rawValue);
     if (!parsedValue?.purchaseId || !parsedValue?.token) return null;
-    if (parsedValue.expiresAt && new Date(parsedValue.expiresAt).getTime() <= Date.now()) return null;
+    if (parsedValue.expiresAt && new Date(parsedValue.expiresAt).getTime() <= Date.now()) {
+      window.localStorage.removeItem(storageKey);
+      window.sessionStorage.removeItem(storageKey);
+      return null;
+    }
     return parsedValue;
   } catch {
     return null;
@@ -47,12 +70,16 @@ function readGuestPurchaseAccess(listingId) {
 
 function storeGuestPurchaseAccess(listingId, access) {
   if (typeof window === "undefined" || !listingId || !access?.purchaseId || !access?.token) return;
-  window.sessionStorage.setItem(getGuestPurchaseStorageKey(listingId), JSON.stringify(access));
+  const storageKey = getGuestPurchaseStorageKey(listingId);
+  window.localStorage.setItem(storageKey, JSON.stringify(access));
+  window.sessionStorage.removeItem(storageKey);
 }
 
 function clearGuestPurchaseAccess(listingId) {
   if (typeof window === "undefined" || !listingId) return;
-  window.sessionStorage.removeItem(getGuestPurchaseStorageKey(listingId));
+  const storageKey = getGuestPurchaseStorageKey(listingId);
+  window.localStorage.removeItem(storageKey);
+  window.sessionStorage.removeItem(storageKey);
 }
 
 function triggerBlobDownload(blob, title) {
@@ -147,7 +174,7 @@ export function PdfDetailPage() {
           ? current
           : {
               type: "success",
-              message: `Your download access for "${listing.title}" is still active in this tab.`,
+              message: `Your download access for "${listing.title}" is still active on this device.`,
               detail: storedGuestAccess.expiresAt
                 ? `Secure guest access remains active until ${new Date(storedGuestAccess.expiresAt).toLocaleString()}.`
                 : "",
