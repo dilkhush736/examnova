@@ -2391,6 +2391,11 @@
     border-radius: 22px;
   }
 
+  .pdf-checkout-panel-stack {
+    min-height: 100%;
+    padding-bottom: calc(6.2rem + env(safe-area-inset-bottom));
+  }
+
   .pdf-checkout-step {
     grid-template-columns: 36px minmax(0, 1fr);
     gap: 0.55rem;
@@ -2453,6 +2458,14 @@
 
   .pdf-checkout-actions {
     gap: 0.65rem;
+    position: sticky;
+    bottom: calc(-0.9rem - env(safe-area-inset-bottom));
+    margin: 0 -0.9rem calc(-0.9rem - env(safe-area-inset-bottom));
+    padding: 0.85rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom));
+    background:
+      linear-gradient(180deg, rgba(241, 248, 255, 0), rgba(241, 248, 255, 0.92) 24%, rgba(241, 248, 255, 0.99));
+    border-top: 1px solid rgba(56, 111, 224, 0.12);
+    box-shadow: 0 -14px 32px rgba(73, 116, 193, 0.14);
   }
 
   .pdf-checkout-actions .button {
@@ -2464,5 +2477,12 @@
     height: 42px;
     border-radius: 14px;
     flex: 0 0 auto;
+  }
+
+  [data-theme="dark"] .pdf-checkout-actions {
+    background:
+      linear-gradient(180deg, rgba(8, 16, 31, 0), rgba(8, 16, 31, 0.92) 24%, rgba(8, 16, 31, 0.985));
+    border-top-color: rgba(111, 232, 255, 0.14);
+    box-shadow: 0 -18px 34px rgba(1, 8, 20, 0.46);
   }
 }
