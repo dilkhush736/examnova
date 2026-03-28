@@ -1078,6 +1078,104 @@
   max-width: 68ch;
 }
 
+.marketplace-section-slider-shell {
+  padding: 0.75rem 0.85rem;
+  background: var(--surface-card-accent);
+}
+
+.marketplace-section-slider {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.marketplace-section-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.marketplace-section-tab {
+  min-width: 240px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+  color: var(--ink);
+  text-align: left;
+  flex: 0 0 auto;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.marketplace-section-tab:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 111, 224, 0.26);
+}
+
+.marketplace-section-tab.active {
+  border-color: rgba(56, 111, 224, 0.34);
+  background:
+    linear-gradient(135deg, rgba(56, 111, 224, 0.12), rgba(111, 232, 255, 0.12)),
+    var(--surface-subtle);
+  box-shadow: 0 14px 28px rgba(28, 74, 158, 0.12);
+}
+
+.marketplace-section-tab-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-strong);
+  color: var(--accent-deep);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.marketplace-section-tab.active .marketplace-section-tab-icon {
+  background: linear-gradient(135deg, rgba(56, 111, 224, 0.18), rgba(111, 232, 255, 0.18));
+  border-color: rgba(56, 111, 224, 0.3);
+}
+
+.marketplace-section-tab-copy {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.marketplace-section-tab-copy strong {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.marketplace-section-tab-copy small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.24;
+}
+
+.marketplace-section-tab-count {
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .simple-marketplace-toolbar {
   gap: 0.9rem;
   padding: 0.9rem 1rem;
@@ -1147,6 +1245,22 @@
 
 .simple-marketplace-mini-filters::-webkit-scrollbar {
   display: none;
+}
+
+.marketplace-section-inline-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-subtle);
+  color: var(--ink-soft);
+}
+
+.marketplace-section-inline-note i {
+  color: var(--accent-deep);
+  flex-shrink: 0;
 }
 
 .simple-mini-filter {
@@ -2375,6 +2489,38 @@
 
   .simple-marketplace-toolbar {
     padding: 0.85rem;
+  }
+
+  .marketplace-section-slider-shell {
+    padding: 0.7rem;
+  }
+
+  .marketplace-section-tab {
+    min-width: 210px;
+    padding: 0.75rem 0.8rem;
+    border-radius: 20px;
+    gap: 0.65rem;
+  }
+
+  .marketplace-section-tab-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    font-size: 1rem;
+  }
+
+  .marketplace-section-tab-copy strong {
+    font-size: 0.92rem;
+  }
+
+  .marketplace-section-tab-copy small {
+    font-size: 0.75rem;
+  }
+
+  .marketplace-section-tab-count {
+    min-width: 34px;
+    min-height: 34px;
+    font-size: 0.78rem;
   }
 
   .simple-marketplace-search-input {
