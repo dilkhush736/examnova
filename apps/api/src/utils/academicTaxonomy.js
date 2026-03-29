@@ -17,7 +17,6 @@ function ensureControlledChoice(value, field, options, { required = true, fallba
     collapseWhitespace: false,
   });
 
-
   if (!normalized) {
     if (required) {
       if (fallback) {
@@ -25,7 +24,7 @@ function ensureControlledChoice(value, field, options, { required = true, fallba
       }
       throw new ApiError(422, `${field} is required.`);
     }
-    
+
     return "";
   }
 
