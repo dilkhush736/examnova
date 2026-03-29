@@ -17,6 +17,66 @@ export function isDeveloperUnlocked(user) {
   return Boolean(modeAccess.developerUnlockedAt || modeAccess.developerUnlockPaymentId);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export function getAvailableAccountModes(user) {
   if (!user) {
     return [PLATFORM_MODES.SIMPLE];
